@@ -39,6 +39,7 @@ const IGNORED_COMPONENT_GROUPS: &[&[&str]] = &[
     &["var", "log"],
     &["var", "run"],
     &["var", "lock"],
+    &["home", "theo", "projects"],
 ];
 
 
