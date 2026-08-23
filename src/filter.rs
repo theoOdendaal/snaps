@@ -1,4 +1,13 @@
 
+// FIXME: This needs to be greatly improved.
+// I feel like there are too many unnecessary
+// file being included.
+
+// TODO: How should .git files be treated?
+// Do I need to even backup anything else
+// other than the .git file?
+
+
 const IGNORED_ROOT_DIRECTORIES: &[&str] = &[
     "bin",
     //"boot",
