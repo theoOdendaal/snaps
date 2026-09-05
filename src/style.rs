@@ -25,7 +25,7 @@ impl Colour {
             Colour::White => "37",
         }
     }
-    
+
     pub const fn bg_code(self) -> &'static str {
         match self {
             Colour::Black => "40",
@@ -38,5 +38,4 @@ impl Colour {
             Colour::White => "47",
         }
     }
-
 }

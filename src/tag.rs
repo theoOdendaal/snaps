@@ -24,7 +24,7 @@ impl From<&Tags> for u8 {
             Tags::Yesterday => FLAG_YESTERDAY,
             Tags::Daily => FLAG_DAILY,
             Tags::Weekly => FLAG_WEEKLY,
-        } 
+        }
     }
 }
 
@@ -38,18 +38,21 @@ impl TryFrom<&str> for Tags {
             "y" | "Y" => Ok(Tags::Yesterday),
             "d" | "D" => Ok(Tags::Daily),
             "w" | "W" => Ok(Tags::Weekly),
-            _ => Err(Error::FromStrError(format!("Unable to parse '{}' to 'Tag'", value))),
-        }  
+            _ => Err(Error::FromStrError(format!(
+                "Unable to parse '{}' to 'Tag'",
+                value
+            ))),
+        }
     }
 }
 
- // FIXME:Weekly snaps should remain static, and be based on a pre-defined start.
- // If I just do NOW / WEEK_AS_SECONDS, it will be rolling?
+// FIXME:Weekly snaps should remain static, and be based on a pre-defined start.
+// If I just do NOW / WEEK_AS_SECONDS, it will be rolling?
 
 const FLAG_TODAY: u8 = 0b0000_0001;
 const FLAG_YESTERDAY: u8 = 0b0000_0010;
 const FLAG_DAILY: u8 = 0b0000_0100;
-const FLAG_WEEKLY: u8 = 0b0000_1000; 
+const FLAG_WEEKLY: u8 = 0b0000_1000;
 
 // Aggrgates a collection of tags into a
 // single bitmask that can be evaluated
@@ -87,8 +90,6 @@ fn has_weekly_tag(mask: u8) -> bool {
     (mask & FLAG_WEEKLY) != 0
 }
 
-
-
 pub fn get_tag_map(mask: u8) -> (bool, bool, bool, bool, bool) {
     (
         has_no_tag(mask),
@@ -100,7 +101,6 @@ pub fn get_tag_map(mask: u8) -> (bool, bool, bool, bool, bool) {
 }
 
 pub fn generate_tags(snapshot_timestamps: &[u64]) -> Result<Vec<(u64, u8)>, Error> {
-    
     // Define retention policy.
     const TODAY_MAX: usize = 5;
     const YESTERDAY_MAX: usize = 5;
@@ -112,7 +112,7 @@ pub fn generate_tags(snapshot_timestamps: &[u64]) -> Result<Vec<(u64, u8)>, Erro
     let mut yesterday_count: usize = 0;
     let mut daily_count: usize = 0;
     let mut weekly_count: usize = 0;
-    
+
     // Sort existing snapshots descending.
     let mut sorted = snapshot_timestamps.to_vec();
     sorted.sort_unstable_by(|a, b| b.cmp(a));
@@ -121,19 +121,19 @@ pub fn generate_tags(snapshot_timestamps: &[u64]) -> Result<Vec<(u64, u8)>, Erro
     let now_secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)?
         .as_secs();
-    
+
     // Create baseline values.
     let today_start = (now_secs / DAY_IN_SECONDS) * DAY_IN_SECONDS;
     let yesterday_start = today_start - DAY_IN_SECONDS;
-    
+
     let mut last_daily = u64::MAX;
     let mut last_weekly = u64::MAX;
 
     let mut results = Vec::with_capacity(snapshot_count);
     for s in sorted {
-        let mut tag =  0u8;
+        let mut tag = 0u8;
 
-        // Bucket into tag category.        
+        // Bucket into tag category.
         // If > today, then it can only have the
         // today tag. Nesting is used to ensure
         // to ensure iteration does not traverse
@@ -162,11 +162,9 @@ pub fn generate_tags(snapshot_timestamps: &[u64]) -> Result<Vec<(u64, u8)>, Erro
                 weekly_count += 1;
                 tag |= FLAG_WEEKLY;
             }
-
         }
 
         results.push((s, tag));
-
     }
 
     Ok(results)
@@ -175,16 +173,28 @@ pub fn generate_tags(snapshot_timestamps: &[u64]) -> Result<Vec<(u64, u8)>, Erro
 #[cfg(test)]
 mod tag_tests {
     use super::*;
-    
+
     #[test]
     fn test_empty_snapshots() {
         let snaps: [u64; 0] = [];
         let tags = generate_tags(&snaps).unwrap();
 
-        let today_snaps: Vec<_> = tags.iter().filter_map(|(a, b)| if has_today_tag(*b) { Some(a) } else { None }).collect();
-        let yesterday_snaps: Vec<_> = tags.iter().filter_map(|(a, b)| if has_yesterday_tag(*b) { Some(a) } else { None }).collect();
-        let daily_snaps: Vec<_> = tags.iter().filter_map(|(a, b)| if has_daily_tag(*b) { Some(a) } else { None }).collect();
-        let weekly_snaps: Vec<_> = tags.iter().filter_map(|(a, b)| if has_weekly_tag(*b) { Some(a) } else { None }).collect();
+        let today_snaps: Vec<_> = tags
+            .iter()
+            .filter_map(|(a, b)| if has_today_tag(*b) { Some(a) } else { None })
+            .collect();
+        let yesterday_snaps: Vec<_> = tags
+            .iter()
+            .filter_map(|(a, b)| if has_yesterday_tag(*b) { Some(a) } else { None })
+            .collect();
+        let daily_snaps: Vec<_> = tags
+            .iter()
+            .filter_map(|(a, b)| if has_daily_tag(*b) { Some(a) } else { None })
+            .collect();
+        let weekly_snaps: Vec<_> = tags
+            .iter()
+            .filter_map(|(a, b)| if has_weekly_tag(*b) { Some(a) } else { None })
+            .collect();
 
         assert!(today_snaps.is_empty());
         assert!(yesterday_snaps.is_empty());
@@ -194,10 +204,10 @@ mod tag_tests {
 
     #[test]
     fn test_snaps() {
-        if let Ok(system_time) =  std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
-            
+        if let Ok(system_time) = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
+        {
             let system_time = system_time.as_secs();
-            
+
             let snaps = [
                 system_time - WEEK_IN_SECONDS,
                 system_time - (DAY_IN_SECONDS + 2 * HOUR_IN_SECONDS),
@@ -208,13 +218,25 @@ mod tag_tests {
 
             let tags = generate_tags(&snaps).unwrap();
 
-            let today_snaps: Vec<_> = tags.iter().filter_map(|(a, b)| if has_today_tag(*b) { Some(a) } else { None }).collect();
-            let yesterday_snaps: Vec<_> = tags.iter().filter_map(|(a, b)| if has_yesterday_tag(*b) { Some(a) } else { None }).collect();
-            let daily_snaps: Vec<_> = tags.iter().filter_map(|(a, b)| if has_daily_tag(*b) { Some(a) } else { None }).collect();
-            let weekly_snaps: Vec<_> = tags.iter().filter_map(|(a, b)| if has_weekly_tag(*b) { Some(a) } else { None }).collect();
-            
+            let today_snaps: Vec<_> = tags
+                .iter()
+                .filter_map(|(a, b)| if has_today_tag(*b) { Some(a) } else { None })
+                .collect();
+            let yesterday_snaps: Vec<_> = tags
+                .iter()
+                .filter_map(|(a, b)| if has_yesterday_tag(*b) { Some(a) } else { None })
+                .collect();
+            let daily_snaps: Vec<_> = tags
+                .iter()
+                .filter_map(|(a, b)| if has_daily_tag(*b) { Some(a) } else { None })
+                .collect();
+            let weekly_snaps: Vec<_> = tags
+                .iter()
+                .filter_map(|(a, b)| if has_weekly_tag(*b) { Some(a) } else { None })
+                .collect();
+
             assert_eq!(today_snaps, [&snaps[4]]);
-            assert_eq!(yesterday_snaps, [&snaps[3],&snaps[2], &snaps[1]]);
+            assert_eq!(yesterday_snaps, [&snaps[3], &snaps[2], &snaps[1]]);
             assert_eq!(daily_snaps, [&snaps[3], &snaps[0]]);
             assert_eq!(weekly_snaps, [&snaps[3], &snaps[0]]);
         }

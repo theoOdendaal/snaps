@@ -1,5 +1,9 @@
-use std::{collections::{HashMap, HashSet, VecDeque}, path::{Path, PathBuf}, sync::Mutex};
 use std::os::unix::fs::MetadataExt;
+use std::{
+    collections::{HashMap, HashSet, VecDeque},
+    path::{Path, PathBuf},
+    sync::Mutex,
+};
 
 use crate::error::Error;
 
@@ -49,7 +53,7 @@ impl TaskQueue {
         let mut q = self.queue.lock().unwrap();
         loop {
             if let Some(task) = q.pop_front() {
-                return Some(task)
+                return Some(task);
             }
 
             let finished = *self.finished.lock().unwrap();
@@ -59,14 +63,16 @@ impl TaskQueue {
 
             q = self.condvar.wait(q).unwrap();
         }
-
     }
 }
 
-fn compute_dir_entry_size(source_path: &Path, global_seen: &std::sync::Arc<Mutex<HashMap<(u64, u64), u64>>>) -> Result<(u64, u64), Error> {
+fn compute_dir_entry_size(
+    source_path: &Path,
+    global_seen: &std::sync::Arc<Mutex<HashMap<(u64, u64), u64>>>,
+) -> Result<(u64, u64), Error> {
     let mut seen_inodes = HashSet::with_capacity(8192);
     let mut stack: Vec<PathBuf> = Vec::with_capacity(8192);
-    
+
     stack.push(source_path.to_path_buf());
 
     let mut total_uniq_blocks: u64 = 0;
@@ -90,7 +96,7 @@ fn compute_dir_entry_size(source_path: &Path, global_seen: &std::sync::Arc<Mutex
         };
 
         if seen_inodes.insert(file_id) {
-            if metadata.nlink() > 1 { 
+            if metadata.nlink() > 1 {
                 total_hl_blocks += blocks;
             } else {
                 total_uniq_blocks += blocks;
@@ -111,14 +117,13 @@ fn compute_dir_entry_size(source_path: &Path, global_seen: &std::sync::Arc<Mutex
             }
         }
     }
-   
+
     // du presents sizes in units of 1024 byte, i.e. 1 Kilobyte
-    Ok((total_uniq_blocks / 2,  total_hl_blocks / 2))
+    Ok((total_uniq_blocks / 2, total_hl_blocks / 2))
     //Ok(total_blocks * 512)
 }
 
 pub fn compute_par_snapshot_sizes() -> Result<(), Error> {
-
     let snapshot_dir = Path::new("/var/snaps/snapshots/arch-theo/");
     let mut snapshots: Vec<PathBuf> = snapshot_dir
         .read_dir()?
@@ -130,13 +135,13 @@ pub fn compute_par_snapshot_sizes() -> Result<(), Error> {
     snapshots.sort();
 
     let global_hashmap = std::sync::Arc::new(std::sync::Mutex::new(HashMap::with_capacity(65536)));
-    
+
     let task_queue = std::sync::Arc::new(TaskQueue::new());
 
     for snap in snapshots {
         task_queue.push(snap);
     }
-    
+
     task_queue.set_finished();
 
     let num_workers = std::thread::available_parallelism()
@@ -151,47 +156,48 @@ pub fn compute_par_snapshot_sizes() -> Result<(), Error> {
         let global_hashmap_clone = std::sync::Arc::clone(&global_hashmap);
 
         let handle = std::thread::spawn(move || -> Result<Vec<(PathBuf, u64, u64)>, Error> {
-            
             let mut results = Vec::new();
             while let Some(task) = queue_clone.pop() {
                 let (uniq, hl) = compute_dir_entry_size(&task, &global_hashmap_clone)?;
-                results.push((task, uniq, hl)); 
-            };
-            
+                results.push((task, uniq, hl));
+            }
+
             Ok(results)
         });
         handles.push(handle);
     }
-    
+
     let mut snapshot_sizes = Vec::new();
     for handle in handles {
         match handle.join() {
             Ok(thread_result) => {
                 snapshot_sizes.extend(thread_result?);
-                
             }
             Err(e) => std::panic::resume_unwind(e),
         }
     }
     snapshot_sizes.sort_unstable_by(|a, b| a.0.cmp(&b.0));
 
-    println!("{:<12} | {:<12} | {:<10} | {:<10} | {:<10}", 
+    println!(
+        "{:<12} | {:<12} | {:<10} | {:<10} | {:<10}",
         "Host", "Snapshot", "Unique", "Hard-link", "Total"
     );
     for (snap, uniq_size, hl_size) in snapshot_sizes {
-        
-        let parent = snap.parent().and_then(|p| p.file_name().unwrap().to_str()).unwrap();
+        let parent = snap
+            .parent()
+            .and_then(|p| p.file_name().unwrap().to_str())
+            .unwrap();
         let snapshot = snap.file_name().and_then(|p| p.to_str()).unwrap();
 
-        println!("{:<12} | {:<12} | {:<10} | {:<10} | {:<10}", 
+        println!(
+            "{:<12} | {:<12} | {:<10} | {:<10} | {:<10}",
             parent,
             snapshot,
             format_size(uniq_size),
             format_size(hl_size),
-            format_size(uniq_size + hl_size), 
+            format_size(uniq_size + hl_size),
         );
-    } 
+    }
 
     Ok(())
-
 }

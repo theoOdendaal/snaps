@@ -15,8 +15,6 @@ impl std::fmt::Display for Error {
             Self::ParseIntError(err) => write!(f, "parse int error: {}", err),
             Self::FromStrError(err) => write!(f, "{}", err),
             Self::InvalidSnapshot(err) => write!(f, "Invalid snapshot: {}", err),
-
-
         }
     }
 }

@@ -1,4 +1,7 @@
-use snaps::{commands::{list::handle_list, remove::handle_remove, take::handle_take}, error::Error};
+use snaps::{
+    commands::{list::handle_list, remove::handle_remove, take::handle_take},
+    error::Error,
+};
 
 // FIXME: Symbolic links should also be established in the snapshot.
 
@@ -11,11 +14,21 @@ use snaps::{commands::{list::handle_list, remove::handle_remove, take::handle_ta
 #[derive(Debug)]
 enum Command {
     Take,
-    List { size: bool, indexes: Option<Vec<usize>>, acronyms: Option<Vec<snaps::tag::Tags>> },
-    Restore { id: usize },
-    Remove { indexes: Option<Vec<usize>>, acronyms: Option<Vec<snaps::tag::Tags>>, force: bool },
+    List {
+        size: bool,
+        indexes: Option<Vec<usize>>,
+        acronyms: Option<Vec<snaps::tag::Tags>>,
+    },
+    Restore {
+        id: usize,
+    },
+    Remove {
+        indexes: Option<Vec<usize>>,
+        acronyms: Option<Vec<snaps::tag::Tags>>,
+        force: bool,
+    },
     Help,
-    Version
+    Version,
 }
 
 fn print_help() {
@@ -50,11 +63,7 @@ fn print_help() {
 
 fn parse_acronyms(values: Option<&String>) -> Result<Vec<snaps::tag::Tags>, Error> {
     values
-        .map(|acrs| {
-            acrs.split(',')
-                .map(|a| a.try_into())
-                .collect()
-        })
+        .map(|acrs| acrs.split(',').map(|a| a.try_into()).collect())
         .unwrap_or_else(|| Ok(Vec::new()))
 }
 
@@ -88,9 +97,8 @@ fn parse_id(value: Option<&String>) -> Result<usize, Error> {
 
 // TODO: Add custom error.
 fn parse_argument(value: std::env::Args) -> Result<Command, Error> {
-    
-    let args: Vec<String> = value.collect(); 
-    
+    let args: Vec<String> = value.collect();
+
     let mut command: Option<&String> = None;
     let mut size = false;
     let mut indexes: Option<&String> = None;
@@ -112,10 +120,7 @@ fn parse_argument(value: std::env::Args) -> Result<Command, Error> {
                     'i' => indexes = iter.next(),
                     'a' => acronyms = iter.next(),
                     _ => unimplemented!("Invalid short argument: {}", c),
-                    
-
                 }
-
             }
         } else if arg.starts_with("--") {
             match arg.as_str() {
@@ -124,65 +129,75 @@ fn parse_argument(value: std::env::Args) -> Result<Command, Error> {
                 "--help" => return Ok(Command::Help),
                 "--version" => return Ok(Command::Version),
                 _ => unimplemented!("Invalid long argument: {}", arg),
-
             }
         } else {
             command = Some(arg);
         }
-        
     }
-    
+
     let Some(cmd) = command else {
         return Ok(Command::Help);
     };
 
     match cmd.as_str() {
-        "take" =>  Ok(Command::Take),
-        
+        "take" => Ok(Command::Take),
+
         "list" if !remove => {
             let indexes = parse_items(indexes)?;
             let acronyms = parse_acronyms(acronyms)?;
-            Ok(Command::List { size, indexes: Some(indexes), acronyms: Some(acronyms) })
+            Ok(Command::List {
+                size,
+                indexes: Some(indexes),
+                acronyms: Some(acronyms),
+            })
         }
-        
+
         //"restore" => Ok(Command::Restore { id: () },
-        
         "rm" | "list" if remove => {
             let indexes = parse_items(indexes)?;
             let acronyms = parse_acronyms(acronyms)?;
-            Ok(Command::Remove { indexes: Some(indexes), acronyms: Some(acronyms), force })
+            Ok(Command::Remove {
+                indexes: Some(indexes),
+                acronyms: Some(acronyms),
+                force,
+            })
         }
-        
-        _ => unimplemented!("Unknown command: {}", cmd),
 
+        _ => unimplemented!("Unknown command: {}", cmd),
     }
 }
 
 fn main() -> Result<(), Error> {
- 
     let command = parse_argument(std::env::args())?;
-    
+
     match command {
         Command::Help => print_help(),
-        
+
         Command::Version => println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")),
-        
+
         Command::Take => {
             handle_take()?;
         }
 
-        Command::List { size, indexes, acronyms } => {
+        Command::List {
+            size,
+            indexes,
+            acronyms,
+        } => {
             handle_list(size, indexes, acronyms)?;
-        },
+        }
 
         Command::Restore { id: _ } => {
             unimplemented!()
-        },
+        }
 
-        Command::Remove { indexes, acronyms, force } => {
+        Command::Remove {
+            indexes,
+            acronyms,
+            force,
+        } => {
             handle_remove(indexes, acronyms, force)?;
-        },
-
+        }
     }
 
     Ok(())
