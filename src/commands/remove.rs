@@ -20,13 +20,13 @@ pub fn handle_remove(
         .and_then(|s| s.to_str())
         .and_then(|s| s.parse::<u64>().ok());
 
-    let compressed_tags = match &select_tags {
-        Some(tags) => Some(crate::tag::tag_collection_into_bitmask(&tags)),
-        None => None,
-    };
+    let compressed_tags = select_tags
+        .as_ref()
+        .map(|tags| crate::tag::tag_collection_into_bitmask(tags));
+
     let has_untagged_selected = select_tags
         .as_ref()
-        .map_or(false, |tags| tags.contains(&Tags::Untagged));
+        .is_some_and(|tags| tags.contains(&Tags::Untagged));
 
     let mut iter = snapshot_tags.iter().enumerate().peekable();
 
@@ -35,9 +35,9 @@ pub fn handle_remove(
 
         let matches_index = select_indexes
             .as_ref()
-            .map_or(false, |selected| selected.contains(&index));
+            .is_some_and(|selected| selected.contains(&index));
 
-        let matches_tag = compressed_tags.as_ref().map_or(false, |tagging| {
+        let matches_tag = compressed_tags.as_ref().is_some_and(|tagging| {
             crate::tag::matches_any(*tag, *tagging) || (has_untagged_selected && *tag == 0)
         });
 
@@ -56,7 +56,7 @@ pub fn handle_remove(
             };
             while input.trim().to_lowercase() != "y" && input.trim().to_lowercase() != "n" {
                 input.clear();
-                print!("Confirm removal of {:?}, (y/n): ", &snapshot_directory);
+                print!("Confirm removal of {:?}, (y/n): ", snapshot_directory);
                 std::io::stdout().flush()?;
                 std::io::stdin().read_line(&mut input)?;
             }

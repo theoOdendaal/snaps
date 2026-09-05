@@ -28,13 +28,13 @@ pub fn handle_list(
 
     let snapshot_count = snapshots.len();
 
-    let compressed_tags = match &select_tags {
-        Some(tags) => Some(crate::tag::tag_collection_into_bitmask(&tags)),
-        None => None,
-    };
+    let compressed_tags = select_tags
+        .as_ref()
+        .map(|tags| crate::tag::tag_collection_into_bitmask(tags));
+
     let has_untagged_selected = select_tags
         .as_ref()
-        .map_or(false, |tags| tags.contains(&Tags::Untagged));
+        .is_some_and(|tags| tags.contains(&Tags::Untagged));
 
     let latest_location = crate::location::get_latest_location()?;
     let latest_location_target = std::fs::read_link(&latest_location)?;
@@ -59,14 +59,15 @@ pub fn handle_list(
             if w { "w" } else { "-" },
         );
 
-        let mut is_selected = compressed_tags.as_ref().map_or(false, |tags| {
+        let mut is_selected = compressed_tags.as_ref().is_some_and(|tags| {
             crate::tag::matches_any(tag, *tags) || (has_untagged_selected && tag == 0)
         });
 
-        if let Some(indexes) = &select_indexes {
-            if indexes.contains(&i) && !is_selected {
-                is_selected = true;
-            }
+        if let Some(indexes) = &select_indexes
+            && indexes.contains(&i)
+            && !is_selected
+        {
+            is_selected = true;
         }
 
         let is_latest = match latest_snapshot {
