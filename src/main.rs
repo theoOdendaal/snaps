@@ -148,7 +148,7 @@ fn parse_argument(value: std::env::Args) -> Result<Command, Error> {
     match cmd.as_str() {
         "take" => {
             let tag = take_tag.and_then(|t| snaps::meta::RetentionTag::try_from(t.as_str()).ok());
-            Ok(Command::Take { tag: tag })
+            Ok(Command::Take { tag })
 
         },
 
@@ -214,7 +214,7 @@ fn main() -> Result<(), Error> {
         }
 
         Command::CheckHealth => {
-            handle_checkhealth(); 
+            handle_checkhealth()?; 
         }
     }
 

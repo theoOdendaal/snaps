@@ -1,4 +1,7 @@
-use crate::error::Error;
+// This crate should still be used to independently reconstruct the metadata file
+// when its corrupted.
+
+/*use crate::error::Error;
 
 // FIXME: Weekly should only start after last daily. Otherwise there is too much overlap between
 // daily and weekly.
@@ -241,4 +244,4 @@ mod tag_tests {
             assert_eq!(weekly_snaps, [&snaps[3], &snaps[0]]);
         }
     }
-}
+}*/

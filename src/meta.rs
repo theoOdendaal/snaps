@@ -18,7 +18,7 @@ pub enum RetentionTag {
     Adhoc,
 }
 
-impl<'a> std::fmt::Display for RetentionTag {
+impl std::fmt::Display for RetentionTag {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Untagged => write!(f, "untagged"),
@@ -46,10 +46,10 @@ impl RetentionTag {
     }
 }
 
-impl<'a> TryFrom<&'a str> for RetentionTag {
+impl TryFrom<&str> for RetentionTag {
     type Error = Error;
 
-    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
             "untagged" => Ok(Self::Untagged),
             "hourly" => Ok(Self::Hourly),
@@ -125,11 +125,10 @@ pub fn read_metadata_file_to_string() -> Result<String, Error> {
     Ok(std::fs::read_to_string(METADATA_FILE)?)
 }
 
-pub fn parse_metadata<'a>(file_content: &'a str) -> Result<Vec<SnapshotMetaData>, Error> {
+pub fn parse_metadata(file_content: &str) -> Result<Vec<SnapshotMetaData>, Error> {
 
     let mut snapshots = Vec::new();
 
-    // Snpashots are separated using ";"
     for snapshot in file_content.split(";") {
         let snapshot = snapshot.trim();
         
@@ -147,7 +146,7 @@ pub fn parse_metadata<'a>(file_content: &'a str) -> Result<Vec<SnapshotMetaData>
         let tags: Vec<RetentionTag> = match tail {
             Some(tags) => {
 
-                tags.split(",").into_iter().map(|t| RetentionTag::try_from(t)).collect::<Result<_, Error>>()?
+                tags.split(",").map(RetentionTag::try_from).collect::<Result<_, Error>>()?
             },
             None => vec![],
 
@@ -159,8 +158,7 @@ pub fn parse_metadata<'a>(file_content: &'a str) -> Result<Vec<SnapshotMetaData>
         }); 
     }
     
-    snapshots.sort_unstable_by(|a, b| b.timestamp.cmp(&a.timestamp));
-
+    snapshots.sort_unstable_by_key(|a| std::cmp::Reverse(a.timestamp));
 
     Ok(snapshots)
     

@@ -1,14 +1,13 @@
 use std::{
     collections::VecDeque,
     path::{Path, PathBuf},
-    time::SystemTime,
 };
 
-use crate::error::Error;
+use crate::{error::Error, location::create_snapshot_name};
 use crate::filter::should_ignore;
 
 pub fn handle_take(tag: Option<crate::meta::RetentionTag>) -> Result<(), Error> {
-    let (timestamp, snapshot_dir) = create_snapshot()?;
+    let (timestamp, snapshot_dir) = create_snapshot_name()?;
 
     let start = Path::new("/");
 
@@ -21,26 +20,6 @@ pub fn handle_take(tag: Option<crate::meta::RetentionTag>) -> Result<(), Error> 
     metadata.append_to_metadata_file()?;
 
     Ok(())
-}
-
-fn create_snapshot() -> Result<(u64, PathBuf), Error> {
-    let timestamp = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)?
-        .as_secs();
-    
-    let location = crate::location::get_host_location()?.join(timestamp.to_string());
-
-    if location.exists() {
-        return Err(Error::Io(std::io::Error::new(
-            std::io::ErrorKind::AlreadyExists,
-            "Snapshot directory already exists",
-        )));
-    }
-
-    std::fs::create_dir_all(&location)?;
-    assert!(location.is_absolute());
-
-    Ok((timestamp, location))
 }
 
 // Update 'latest' symlink to reference a new snapshot,

@@ -2,14 +2,10 @@ use std::io::Write;
 
 use crate::{error::Error, meta::RetentionTag, style::Colour};
 
-// FIXME: How would tagging of ad-hoc snapshots work?
-
 const HOUR_IN_SECONDS: u64 = 60 * 60;
 const DAY_IN_SECONDS: u64 = HOUR_IN_SECONDS * 24;
 const WEEK_IN_SECONDS: u64 = DAY_IN_SECONDS * 7;
 
-// TODO: Add tagging information !!! and other snapshot information, i.e. linux version etc. Add
-// a cli flag for this?
 pub fn handle_list(
     display_size: bool,
     select_indexes: Option<Vec<usize>>,
@@ -20,7 +16,7 @@ pub fn handle_list(
         return Ok(());
     }
 
-    let hostname = crate::location::get_host_name()?;
+    let hostname = crate::location::get_hostname()?;
     let host_location = crate::location::get_host_location()?;
     let snapshots = crate::location::retrieve_snapshots(&host_location)?;
 
@@ -33,7 +29,6 @@ pub fn handle_list(
     let metadata_file_content = crate::meta::read_metadata_file_to_string()?;
     let metadata = crate::meta::parse_metadata(&metadata_file_content)?;
 
-
     let stdout = std::io::stdout();
     let mut writer = std::io::BufWriter::new(stdout.lock());
 
@@ -43,6 +38,7 @@ pub fn handle_list(
         let (year, month, day, hour, min, sec) = epoch_to_datetime(snapshot);
 
         let tags = metadata[index].tags();
+        //let tags = metadata[i].tags();
 
         let tag_string = crate::meta::RetentionTag::get_tags_mask(tags);
 
