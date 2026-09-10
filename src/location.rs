@@ -30,15 +30,16 @@ pub fn create_snapshot_name() -> Result<(u64, PathBuf), Error> {
         .as_secs();
 
     let location = get_host_location()?.join(timestamp.to_string());
+    
+    match std::fs::create_dir(&location) {
+        Ok(_) => Ok((timestamp, location)),
 
-    if location.exists() {
-        return Err(Error::ExistingSnapshot(timestamp));
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+            Err(Error::ExistingSnapshot(timestamp))
+        }
+
+        Err(e) => Err(e.into()),
     }
-
-    std::fs::create_dir_all(&location)?;
-    assert!(location.is_absolute());
-
-    Ok((timestamp, location))
 }
 
 pub fn construct_snapshot_directory(snapshot: u64) -> Result<PathBuf, Error> {
