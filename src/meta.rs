@@ -1,4 +1,3 @@
-
 use std::fs::OpenOptions;
 use std::io::Write;
 
@@ -33,16 +32,39 @@ impl std::fmt::Display for RetentionTag {
 
 impl RetentionTag {
     pub fn get_tags_mask(tags: &[RetentionTag]) -> String {
-        format!("{}{}{}{}{}{}",
-            if tags.contains(&RetentionTag::Untagged) { "u" } else {"-"},
-            if tags.contains(&RetentionTag::Hourly) { "h" } else {"-"},
-            if tags.contains(&RetentionTag::Daily) { "d" } else {"-"},
-            if tags.contains(&RetentionTag::Weekly) { "w" } else {"-"},
-            if tags.contains(&RetentionTag::Monthly) { "m" } else {"-"},
-            if tags.contains(&RetentionTag::Adhoc) { "a" } else {"-"},
-            )
-
-
+        format!(
+            "{}{}{}{}{}{}",
+            if tags.contains(&RetentionTag::Untagged) {
+                "u"
+            } else {
+                "-"
+            },
+            if tags.contains(&RetentionTag::Hourly) {
+                "h"
+            } else {
+                "-"
+            },
+            if tags.contains(&RetentionTag::Daily) {
+                "d"
+            } else {
+                "-"
+            },
+            if tags.contains(&RetentionTag::Weekly) {
+                "w"
+            } else {
+                "-"
+            },
+            if tags.contains(&RetentionTag::Monthly) {
+                "m"
+            } else {
+                "-"
+            },
+            if tags.contains(&RetentionTag::Adhoc) {
+                "a"
+            } else {
+                "-"
+            },
+        )
     }
 }
 
@@ -73,7 +95,7 @@ impl TryFrom<char> for RetentionTag {
             'w' => Ok(Self::Weekly),
             'm' => Ok(Self::Monthly),
             'a' => Ok(Self::Adhoc),
-            _ => Err(Error::UnknownTag(value.into()))
+            _ => Err(Error::UnknownTag(value.into())),
         }
     }
 }
@@ -86,7 +108,12 @@ pub struct SnapshotMetaData {
 
 impl std::fmt::Display for SnapshotMetaData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let tags = self.tags.iter().map(|f| f.to_string()).collect::<Vec<_>>().join(",");
+        let tags = self
+            .tags
+            .iter()
+            .map(|f| f.to_string())
+            .collect::<Vec<_>>()
+            .join(",");
         write!(f, "{}:{};", self.timestamp, tags)
     }
 }
@@ -105,7 +132,10 @@ impl<'a> SnapshotMetaData {
     }
 
     pub fn append_to_metadata_file(&self) -> Result<(), Error> {
-        let mut file = OpenOptions::new().create(true).append(true).open(METADATA_FILE)?;
+        let mut file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(METADATA_FILE)?;
         writeln!(file, "{}", self)?;
 
         Ok(())
@@ -118,7 +148,6 @@ impl<'a> SnapshotMetaData {
         }
         Ok(())
     }
-
 }
 
 pub fn read_metadata_file_to_string() -> Result<String, Error> {
@@ -126,16 +155,15 @@ pub fn read_metadata_file_to_string() -> Result<String, Error> {
 }
 
 pub fn parse_metadata(file_content: &str) -> Result<Vec<SnapshotMetaData>, Error> {
-
     let mut snapshots = Vec::new();
 
     for snapshot in file_content.split(";") {
         let snapshot = snapshot.trim();
-        
+
         if snapshot.is_empty() {
             continue;
         }
-        
+
         let (head, tail) = match snapshot.rsplit_once(":") {
             Some((head, tail)) => (head, Some(tail)),
             None => (snapshot, None),
@@ -144,22 +172,17 @@ pub fn parse_metadata(file_content: &str) -> Result<Vec<SnapshotMetaData>, Error
         let timestamp = head.parse::<u64>()?;
 
         let tags: Vec<RetentionTag> = match tail {
-            Some(tags) => {
-
-                tags.split(",").map(RetentionTag::try_from).collect::<Result<_, Error>>()?
-            },
+            Some(tags) => tags
+                .split(",")
+                .map(RetentionTag::try_from)
+                .collect::<Result<_, Error>>()?,
             None => vec![],
-
         };
 
-        snapshots.push(SnapshotMetaData {
-            timestamp,
-            tags,
-        }); 
+        snapshots.push(SnapshotMetaData { timestamp, tags });
     }
-    
+
     snapshots.sort_unstable_by_key(|a| std::cmp::Reverse(a.timestamp));
 
     Ok(snapshots)
-    
 }

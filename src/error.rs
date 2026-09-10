@@ -8,13 +8,16 @@ pub enum Error {
     InvalidSnapshot(u64),
 
     UnknownTag(String),
-
 }
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::ExistingSnapshot(err) => write!(f, "Unable to create new snapshot for {}, due to it already existing", err),
+            Self::ExistingSnapshot(err) => write!(
+                f,
+                "Unable to create new snapshot for {}, due to it already existing",
+                err
+            ),
             Self::SnapShotTime(err) => write!(f, "Snapshot time error: {}", err),
             Self::Io(err) => write!(f, "i/o error: {}", err),
             Self::ParseIntError(err) => write!(f, "parse int error: {}", err),

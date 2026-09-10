@@ -1,4 +1,7 @@
-use std::{path::{Path, PathBuf}, time::SystemTime};
+use std::{
+    path::{Path, PathBuf},
+    time::SystemTime,
+};
 
 use crate::error::Error;
 
@@ -25,7 +28,7 @@ pub fn create_snapshot_name() -> Result<(u64, PathBuf), Error> {
     let timestamp = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)?
         .as_secs();
-    
+
     let location = get_host_location()?.join(timestamp.to_string());
 
     if location.exists() {
@@ -36,7 +39,7 @@ pub fn create_snapshot_name() -> Result<(u64, PathBuf), Error> {
     assert!(location.is_absolute());
 
     Ok((timestamp, location))
-} 
+}
 
 pub fn construct_snapshot_directory(snapshot: u64) -> Result<PathBuf, Error> {
     let host_location = get_host_location()?;
@@ -58,7 +61,6 @@ pub fn retrieve_snapshots(host_location: &Path) -> Result<Vec<u64>, Error> {
         match entry.file_type() {
             Ok(file_type) if file_type.is_dir() => match entry.file_name().to_str() {
                 Some(file_name) if !file_name.starts_with(".") => {
-
                     let timestamp = file_name.parse::<u64>()?;
                     snapshots.push(timestamp);
                 }

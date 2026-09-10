@@ -1,5 +1,9 @@
 use snaps::{
-    commands::{checkhealth::handle_checkhealth, list::handle_list, remove::handle_remove, take::handle_take}, error::Error,
+    commands::{
+        checkhealth::handle_checkhealth, list::handle_list, remove::handle_remove,
+        take::handle_take,
+    },
+    error::Error,
 };
 
 // FIXME: Symbolic links should also be established in the snapshot.
@@ -12,7 +16,9 @@ use snaps::{
 
 #[derive(Debug)]
 enum Command {
-    Take { tag: Option<snaps::meta::RetentionTag> },
+    Take {
+        tag: Option<snaps::meta::RetentionTag>,
+    },
     List {
         size: bool,
         indexes: Option<Vec<usize>>,
@@ -149,8 +155,7 @@ fn parse_argument(value: std::env::Args) -> Result<Command, Error> {
         "take" => {
             let tag = take_tag.and_then(|t| snaps::meta::RetentionTag::try_from(t.as_str()).ok());
             Ok(Command::Take { tag })
-
-        },
+        }
 
         "list" if !remove => {
             let indexes = parse_items(indexes)?;
@@ -173,9 +178,7 @@ fn parse_argument(value: std::env::Args) -> Result<Command, Error> {
             })
         }
 
-        "checkhealth" => {
-            Ok(Command::CheckHealth)
-        }
+        "checkhealth" => Ok(Command::CheckHealth),
 
         _ => unimplemented!("Unknown command: {}", cmd),
     }
@@ -189,7 +192,7 @@ fn main() -> Result<(), Error> {
 
         Command::Version => println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")),
 
-        Command::Take { tag }=> {
+        Command::Take { tag } => {
             handle_take(tag)?;
         }
 
@@ -214,7 +217,7 @@ fn main() -> Result<(), Error> {
         }
 
         Command::CheckHealth => {
-            handle_checkhealth()?; 
+            handle_checkhealth()?;
         }
     }
 
@@ -222,7 +225,7 @@ fn main() -> Result<(), Error> {
 }
 
 /*fn main() -> Result<(), Error> {
-    
+
     let content = snaps::meta::read_metadata_file_to_string()?;
     let metadata = snaps::meta::parse_metadata(&content)?;
 
@@ -230,5 +233,5 @@ fn main() -> Result<(), Error> {
 
     Ok(())
 }
-    
+
 */

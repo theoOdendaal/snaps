@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use crate::{error::Error};
+use crate::error::Error;
 
 pub fn handle_remove(
     select_indexes: Option<Vec<usize>>,
@@ -18,7 +18,6 @@ pub fn handle_remove(
         .and_then(|s| s.to_str())
         .and_then(|s| s.parse::<u64>().ok());
 
-
     let metadata_file_content = crate::meta::read_metadata_file_to_string()?;
     let mut metadata = crate::meta::parse_metadata(&metadata_file_content)?;
     let metadata_count = metadata.len();
@@ -26,7 +25,6 @@ pub fn handle_remove(
     let mut iter = snapshots.iter().enumerate().peekable();
 
     while let Some((i, snap)) = iter.next() {
-
         let index = snapshot_count - 1 - i;
 
         let tags = metadata[index].tags();
@@ -35,14 +33,16 @@ pub fn handle_remove(
             .as_ref()
             .is_some_and(|selected| selected.contains(&index));
 
-        let matches_tag = select_tags.clone().is_some_and(|selected| selected.iter().any(|t| tags.contains(t)));
+        let matches_tag = select_tags
+            .clone()
+            .is_some_and(|selected| selected.iter().any(|t| tags.contains(t)));
 
         if matches_index || matches_tag {
             let is_latest = match latest_snapshot {
                 Some(latest) => &latest == snap,
                 None => false,
             };
-            
+
             metadata.remove(index);
 
             let snapshot_directory = crate::location::construct_snapshot_directory(*snap)?;
@@ -80,7 +80,7 @@ pub fn handle_remove(
         }
     }
 
-    if metadata_count != metadata.len() { 
+    if metadata_count != metadata.len() {
         crate::meta::SnapshotMetaData::overwrite_metadata_file(&metadata)?;
     }
 

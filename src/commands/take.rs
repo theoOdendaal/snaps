@@ -3,8 +3,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{error::Error, location::create_snapshot_name};
 use crate::filter::should_ignore;
+use crate::{error::Error, location::create_snapshot_name};
 
 pub fn handle_take(tag: Option<crate::meta::RetentionTag>) -> Result<(), Error> {
     let (timestamp, snapshot_dir) = create_snapshot_name()?;
@@ -14,7 +14,7 @@ pub fn handle_take(tag: Option<crate::meta::RetentionTag>) -> Result<(), Error> 
     orchestrate_parallel_fs_walk(start, &snapshot_dir)?;
 
     set_latest_symlink(&snapshot_dir)?;
-    
+
     let tags = vec![tag.unwrap_or_default()];
     let metadata = crate::meta::SnapshotMetaData::new(timestamp, tags);
     metadata.append_to_metadata_file()?;

@@ -2,7 +2,7 @@ pub mod commands;
 pub mod error;
 pub mod filter;
 pub mod location;
+pub mod meta;
 pub mod size;
 pub mod style;
 pub mod tag;
-pub mod meta;

@@ -42,7 +42,9 @@ pub fn handle_list(
 
         let tag_string = crate::meta::RetentionTag::get_tags_mask(tags);
 
-        let mut is_selected = select_tags.clone().is_some_and(|selected| selected.iter().any(|t| tags.contains(t)));
+        let mut is_selected = select_tags
+            .clone()
+            .is_some_and(|selected| selected.iter().any(|t| tags.contains(t)));
 
         if let Some(indexes) = &select_indexes
             && indexes.contains(&i)
