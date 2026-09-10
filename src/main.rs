@@ -12,7 +12,7 @@ use snaps::{
 
 #[derive(Debug)]
 enum Command {
-    Take { tag: Option<snaps::tags::SnapshotTag> },
+    Take { tag: Option<snaps::meta::RetentionTag> },
     List {
         size: bool,
         indexes: Option<Vec<usize>>,
@@ -147,7 +147,7 @@ fn parse_argument(value: std::env::Args) -> Result<Command, Error> {
 
     match cmd.as_str() {
         "take" => {
-            let tag = take_tag.and_then(|t| snaps::tags::SnapshotTag::try_from(t.as_str()).ok());
+            let tag = take_tag.and_then(|t| snaps::meta::RetentionTag::try_from(t.as_str()).ok());
             Ok(Command::Take { tag: tag })
 
         },

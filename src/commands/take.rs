@@ -7,30 +7,28 @@ use std::{
 use crate::error::Error;
 use crate::filter::should_ignore;
 
-pub fn handle_take(tag: Option<crate::tags::SnapshotTag>) -> Result<(), Error> {
-    let snapshot_dir = create_snapshot(tag)?;
+pub fn handle_take(tag: Option<crate::meta::RetentionTag>) -> Result<(), Error> {
+    let (timestamp, snapshot_dir) = create_snapshot()?;
 
     let start = Path::new("/");
 
     orchestrate_parallel_fs_walk(start, &snapshot_dir)?;
 
     set_latest_symlink(&snapshot_dir)?;
+    
+    let tags = vec![tag.unwrap_or_default()];
+    let metadata = crate::meta::SnapshotMetaData::new(timestamp, tags);
+    metadata.append_to_metadata_file()?;
 
     Ok(())
 }
 
-fn create_snapshot(tag: Option<crate::tags::SnapshotTag>) -> Result<PathBuf, Error> {
+fn create_snapshot() -> Result<(u64, PathBuf), Error> {
     let timestamp = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)?
         .as_secs();
     
-    let snapshot_name = crate::name::SnapshotName::new(timestamp, tag);
-
-    //let dir_name = snapshot_name.to_string();
-
-
-    //let location = crate::location::get_host_location()?.join(dir_name);
-    let location = crate::location::get_host_location()?.join(snapshot_name.timestamp().to_string());
+    let location = crate::location::get_host_location()?.join(timestamp.to_string());
 
     if location.exists() {
         return Err(Error::Io(std::io::Error::new(
@@ -42,7 +40,7 @@ fn create_snapshot(tag: Option<crate::tags::SnapshotTag>) -> Result<PathBuf, Err
     std::fs::create_dir_all(&location)?;
     assert!(location.is_absolute());
 
-    Ok(location)
+    Ok((timestamp, location))
 }
 
 // Update 'latest' symlink to reference a new snapshot,

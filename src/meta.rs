@@ -1,12 +1,15 @@
-// Snapshot metadata is stored in /var/snaps/snapshots/arch-theo/.snapshot-meta
+
+use std::fs::OpenOptions;
+use std::io::Write;
 
 use crate::error::Error;
 
 const METADATA_FILE: &str = "/var/snaps/snapshots/arch-theo/.snapshot-meta";
 
 #[repr(u8)]
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, Default, PartialEq, Clone, Copy)]
 pub enum RetentionTag {
+    #[default]
     Untagged,
     Hourly,
     Daily,
@@ -81,6 +84,13 @@ pub struct SnapshotMetaData {
     tags: Vec<RetentionTag>,
 }
 
+impl std::fmt::Display for SnapshotMetaData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let tags = self.tags.iter().map(|f| f.to_string()).collect::<Vec<_>>().join(",");
+        write!(f, "{}:{};", self.timestamp, tags)
+    }
+}
+
 impl<'a> SnapshotMetaData {
     pub fn new(timestamp: u64, tags: Vec<RetentionTag>) -> Self {
         Self { timestamp, tags }
@@ -92,6 +102,13 @@ impl<'a> SnapshotMetaData {
 
     pub fn contains_tag(&self, tag: &RetentionTag) -> bool {
         self.tags.contains(tag)
+    }
+
+    pub fn append_to_metadata_file(&self) -> Result<(), Error> {
+        let mut file = OpenOptions::new().create(true).append(true).open(METADATA_FILE)?;
+        writeln!(file, "{}", self)?;
+
+        Ok(())
     }
 
     
