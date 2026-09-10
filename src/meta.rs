@@ -4,6 +4,7 @@ use crate::error::Error;
 
 const METADATA_FILE: &str = "/var/snaps/snapshots/arch-theo/.snapshot-meta";
 
+#[derive(Debug)]
 #[repr(u8)]
 pub enum RetentionTag {
     Untagged,
@@ -43,23 +44,40 @@ impl<'a> TryFrom<&'a str> for RetentionTag {
     }
 }
 
-pub struct SnapshotMetaData<'a> {
-    timestamp: u64,
-    tags: &'a [RetentionTag],
+impl TryFrom<char> for RetentionTag {
+    type Error = Error;
+
+    fn try_from(value: char) -> Result<Self, Self::Error> {
+        match value {
+            'u' => Ok(Self::Untagged),
+            'h' => Ok(Self::Hourly),
+            'd' => Ok(Self::Daily),
+            'w' => Ok(Self::Weekly),
+            'm' => Ok(Self::Monthly),
+            'a' => Ok(Self::Adhoc),
+            _ => Err(Error::UnknownTag(value.into()))
+        }
+    }
 }
 
-impl<'a> SnapshotMetaData<'a> {
-    pub fn new(timestamp: u64, tags: &'a [RetentionTag]) -> Self {
+#[derive(Debug)]
+pub struct SnapshotMetaData {
+    timestamp: u64,
+    tags: Vec<RetentionTag>,
+}
+
+impl<'a> SnapshotMetaData {
+    pub fn new(timestamp: u64, tags: Vec<RetentionTag>) -> Self {
         Self { timestamp, tags }
     }
 
 }
 
-fn read_metadata_file_to_string() -> Result<String, Error> {
+pub fn read_metadata_file_to_string() -> Result<String, Error> {
     Ok(std::fs::read_to_string(METADATA_FILE)?)
 }
 
-fn parse_metadata<'a>(file_content: &'a str) -> Result<Vec<SnapshotMetaData>, Error> {
+pub fn parse_metadata<'a>(file_content: &'a str) -> Result<Vec<SnapshotMetaData>, Error> {
 
     let mut snapshots = Vec::new();
 
@@ -78,10 +96,10 @@ fn parse_metadata<'a>(file_content: &'a str) -> Result<Vec<SnapshotMetaData>, Er
 
         let timestamp = head.parse::<u64>()?;
 
-        let tags = match tail {
+        let tags: Vec<RetentionTag> = match tail {
             Some(tags) => {
 
-                tags.split(",").into_iter().map(|t| RetentionTag::try_from).collect()
+                tags.split(",").into_iter().map(|t| RetentionTag::try_from(t)).collect::<Result<_, Error>>()?
             },
             None => vec![],
 
@@ -94,12 +112,4 @@ fn parse_metadata<'a>(file_content: &'a str) -> Result<Vec<SnapshotMetaData>, Er
     }
     Ok(snapshots)
     
-}
-
-
-fn parse_retention_tags<'a>(s: String) -> Result<Vec<RetentionTag>, Error> {
-    
-    s.split(",").map(|t| RetentionTag::try_from).collect()
-    
-
 }

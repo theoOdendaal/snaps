@@ -175,7 +175,7 @@ fn parse_argument(value: std::env::Args) -> Result<Command, Error> {
         _ => unimplemented!("Unknown command: {}", cmd),
     }
 }
-
+/*
 fn main() -> Result<(), Error> {
     let command = parse_argument(std::env::args())?;
 
@@ -211,7 +211,16 @@ fn main() -> Result<(), Error> {
 
     Ok(())
 }
+*/
 
+fn main() -> Result<(), Error> {
+    
+    let content = snaps::meta::read_metadata_file_to_string()?;
+    let metadata = snaps::meta::parse_metadata(&content)?;
 
+    println!("{:?}", metadata);
+
+    Ok(())
+}
     
 
