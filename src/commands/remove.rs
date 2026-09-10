@@ -1,15 +1,15 @@
 use std::io::Write;
 
-use crate::{error::Error, tag::Tags};
+use crate::{error::Error};
 
 pub fn handle_remove(
     select_indexes: Option<Vec<usize>>,
-    select_tags: Option<Vec<Tags>>,
+    select_tags: Option<Vec<crate::tags::SnapshotTag>>,
     force: bool,
 ) -> Result<(), Error> {
     let host_location = crate::location::get_host_location()?;
-    let snapshots = crate::location::retrieve_snapshot(&host_location)?;
-    let snapshot_tags = crate::tag::generate_tags(&snapshots)?;
+    let snapshots = crate::location::retrieve_snapshots(&host_location)?;
+    //let snapshot_tags = crate::tag::generate_tags(&snapshots)?;
 
     let snapshot_count = snapshots.len();
 
@@ -20,34 +20,42 @@ pub fn handle_remove(
         .and_then(|s| s.to_str())
         .and_then(|s| s.parse::<u64>().ok());
 
-    let compressed_tags = select_tags
+    /*let compressed_tags = select_tags
         .as_ref()
         .map(|tags| crate::tag::tag_collection_into_bitmask(tags));
 
     let has_untagged_selected = select_tags
         .as_ref()
-        .is_some_and(|tags| tags.contains(&Tags::Untagged));
+        .is_some_and(|tags| tags.contains(&Tags::Untagged));*/
 
-    let mut iter = snapshot_tags.iter().enumerate().peekable();
+    let mut iter = snapshots.iter().enumerate().peekable();
 
-    while let Some((i, (snap, tag))) = iter.next() {
+    while let Some((i, name)) = iter.next() {
+        let snap = name.timestamp();
+        let tag = name.tag();
+
         let index = snapshot_count - 1 - i;
 
         let matches_index = select_indexes
             .as_ref()
             .is_some_and(|selected| selected.contains(&index));
 
-        let matches_tag = compressed_tags.as_ref().is_some_and(|tagging| {
+        /*let matches_tag = compressed_tags.as_ref().is_some_and(|tagging| {
             crate::tag::matches_any(*tag, *tagging) || (has_untagged_selected && *tag == 0)
-        });
+        });*/
+
+        let matches_tag = match select_tags.clone() {
+            Some(selected_tags) if tag.as_ref().is_some_and(|tag| selected_tags.contains(tag)) => true,
+            _ => false,
+        };
 
         if matches_index || matches_tag {
             let is_latest = match latest_snapshot {
-                Some(latest) => latest == *snap,
+                Some(latest) => latest == snap,
                 None => false,
             };
 
-            let snapshot_directory = crate::location::construct_snapshot_directory(*snap)?;
+            let snapshot_directory = crate::location::construct_snapshot_directory(snap)?;
 
             let mut input = if force {
                 String::from("y")
@@ -66,11 +74,12 @@ pub fn handle_remove(
 
                 if is_latest {
                     match iter.peek() {
-                        Some((_, (link, _))) => {
+                        Some((_, name_peek)) => {
+                            let link = name_peek.timestamp();
                             let link_dirctory =
-                                crate::location::construct_snapshot_directory(*link)?;
+                                crate::location::construct_snapshot_directory(link)?;
                             set_latest_symlink(&link_dirctory)?;
-                            latest_snapshot = Some(*link);
+                            latest_snapshot = Some(link);
                             latest_location_target = link_dirctory;
                         }
                         None => std::fs::remove_file(&latest_location_target)?,

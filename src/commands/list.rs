@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use crate::{error::Error, style::Colour, tag::Tags};
+use crate::{error::Error, style::Colour, tags::SnapshotTag};
 
 // FIXME: How would tagging of ad-hoc snapshots work?
 
@@ -13,28 +13,18 @@ const WEEK_IN_SECONDS: u64 = DAY_IN_SECONDS * 7;
 pub fn handle_list(
     display_size: bool,
     select_indexes: Option<Vec<usize>>,
-    select_tags: Option<Vec<Tags>>,
+    select_tags: Option<Vec<SnapshotTag>>,
 ) -> Result<(), Error> {
     if display_size {
-        //crate::size::compute_snapshot_sizes()?;
         crate::size::compute_par_snapshot_sizes()?;
         return Ok(());
     }
 
     let hostname = crate::location::get_host_name()?;
     let host_location = crate::location::get_host_location()?;
-    let snapshots = crate::location::retrieve_snapshot(&host_location)?;
-    let snapshot_tags = crate::tag::generate_tags(&snapshots)?;
+    let snapshots = crate::location::retrieve_snapshots(&host_location)?;
 
     let snapshot_count = snapshots.len();
-
-    let compressed_tags = select_tags
-        .as_ref()
-        .map(|tags| crate::tag::tag_collection_into_bitmask(tags));
-
-    let has_untagged_selected = select_tags
-        .as_ref()
-        .is_some_and(|tags| tags.contains(&Tags::Untagged));
 
     let latest_location = crate::location::get_latest_location()?;
     let latest_location_target = std::fs::read_link(&latest_location)?;
@@ -45,23 +35,21 @@ pub fn handle_list(
 
     for i in 0..snapshot_count {
         let index = snapshot_count - 1 - i;
-        let (snapshot, tag) = snapshot_tags[index];
+        let current_snapshot = snapshots[index];
+        let (snapshot, tag) = (current_snapshot.timestamp(), current_snapshot.tag());
         let (year, month, day, hour, min, sec) = epoch_to_datetime(snapshot);
 
-        let (u, t, y, d, w) = crate::tag::get_tag_map(tag);
+        let tag_string = if let Some(tag) = tag {
+            tag.get_tag_mask()
+        } else {
+            "-----".into()
+        };
 
-        let tag_string = format!(
-            "{}{}{}{}{}",
-            if u { "u" } else { "-" },
-            if t { "t" } else { "-" },
-            if y { "y" } else { "-" },
-            if d { "d" } else { "-" },
-            if w { "w" } else { "-" },
-        );
 
-        let mut is_selected = compressed_tags.as_ref().is_some_and(|tags| {
-            crate::tag::matches_any(tag, *tags) || (has_untagged_selected && tag == 0)
-        });
+        let mut is_selected = match select_tags.clone() {
+            Some(selected_tags) if tag.as_ref().is_some_and(|tag| selected_tags.contains(tag)) => true,
+            _ => false,
+        };
 
         if let Some(indexes) = &select_indexes
             && indexes.contains(&i)
@@ -71,7 +59,7 @@ pub fn handle_list(
         }
 
         let is_latest = match latest_snapshot {
-            Some(name) => name == snapshot.to_string(),
+            Some(name) => name == current_snapshot.to_string(),
             None => false,
         };
 

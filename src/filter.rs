@@ -43,6 +43,8 @@ const IGNORED_COMPONENT_GROUPS: &[&[&str]] = &[
     &["var", "run"],
     &["var", "lock"],
     &["home", "theo", "projects"],
+    &["home", "theo", ".MathWorks"],
+    &["home", "theo", ".rustup"],
 ];
 
 fn root_level_exclusion(path: &std::path::Path) -> bool {

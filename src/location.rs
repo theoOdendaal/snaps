@@ -1,5 +1,4 @@
 // File used to manage snapshot locations.
-
 use crate::error::Error;
 
 const BASE_SNAPSHOT_DIR: &str = concat!("/var/", env!("CARGO_PKG_NAME"), "/snapshots");
@@ -33,8 +32,8 @@ pub fn construct_snapshot_directory(snapshot: u64) -> Result<std::path::PathBuf,
     Ok(directory)
 }
 
-pub fn retrieve_snapshot(host_location: &std::path::Path) -> Result<Vec<u64>, Error> {
-    let mut snapshots: Vec<u64> = Vec::with_capacity(30);
+pub fn retrieve_snapshots(host_location: &std::path::Path) -> Result<Vec<crate::name::SnapshotName>, Error> {
+    let mut snapshots: Vec<crate::name::SnapshotName> = Vec::with_capacity(30);
 
     for entry in std::fs::read_dir(host_location)? {
         let entry = entry?;
@@ -42,13 +41,16 @@ pub fn retrieve_snapshot(host_location: &std::path::Path) -> Result<Vec<u64>, Er
         match entry.file_type() {
             Ok(file_type) if file_type.is_dir() => match entry.file_name().to_str() {
                 Some(file_name) if !file_name.starts_with(".") => {
-                    let secs = file_name.parse::<u64>()?;
-                    snapshots.push(secs);
+
+                    let snapshot_name = crate::name::SnapshotName::from_str(file_name)?;
+
+                    snapshots.push(snapshot_name);
                 }
                 _ => {}
             },
             _ => continue,
         }
     }
+    snapshots.sort_unstable_by(|a, b| b.timestamp().cmp(&a.timestamp()));
     Ok(snapshots)
 }

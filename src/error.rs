@@ -5,6 +5,11 @@ pub enum Error {
     ParseIntError(std::num::ParseIntError),
     FromStrError(String),
     InvalidSnapshot(u64),
+
+    InvalidSnapshotDirectory(String),
+    EmptyTag,
+    UnknownTag(String),
+
 }
 
 impl std::fmt::Display for Error {
@@ -15,6 +20,9 @@ impl std::fmt::Display for Error {
             Self::ParseIntError(err) => write!(f, "parse int error: {}", err),
             Self::FromStrError(err) => write!(f, "{}", err),
             Self::InvalidSnapshot(err) => write!(f, "Invalid snapshot: {}", err),
+            Self::InvalidSnapshotDirectory(err) => write!(f, "Invalid snapshot directory: {}", err),
+            Self::EmptyTag => write!(f, "Empty tag"),
+            Self::UnknownTag(err) => write!(f, "Unknown tag: {}", err),
         }
     }
 }
@@ -27,6 +35,9 @@ impl std::error::Error for Error {
             Self::ParseIntError(err) => Some(err),
             Self::FromStrError(_) => None,
             Self::InvalidSnapshot(_) => None,
+            Self::InvalidSnapshotDirectory(_) => None,
+            Self::EmptyTag => None,
+            Self::UnknownTag(_) => None,
         }
     }
 }

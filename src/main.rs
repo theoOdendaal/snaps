@@ -13,18 +13,18 @@ use snaps::{
 
 #[derive(Debug)]
 enum Command {
-    Take,
+    Take { tag: Option<snaps::tags::SnapshotTag> },
     List {
         size: bool,
         indexes: Option<Vec<usize>>,
-        acronyms: Option<Vec<snaps::tag::Tags>>,
+        acronyms: Option<Vec<snaps::tags::SnapshotTag>>,
     },
     Restore {
         id: usize,
     },
     Remove {
         indexes: Option<Vec<usize>>,
-        acronyms: Option<Vec<snaps::tag::Tags>>,
+        acronyms: Option<Vec<snaps::tags::SnapshotTag>>,
         force: bool,
     },
     Help,
@@ -40,6 +40,9 @@ fn print_help() {
   list                  Display existing snapshots
   restore <ID>          Restore a specific snapshot
   rm                    Permanently remove one or more existing snapshot
+
+\x1b[1mOptions (for take):\x1b[0m
+  --tag <TAG>         Assign specified tag to snapshot [u, h, d, w, a*]
 
 \x1b[1mOptions (for list):\x1b[0m
   -s, --size            Display allocated size for each snapshot
@@ -61,7 +64,7 @@ fn print_help() {
     print!("{}", help_text);
 }
 
-fn parse_acronyms(values: Option<&String>) -> Result<Vec<snaps::tag::Tags>, Error> {
+fn parse_acronyms(values: Option<&String>) -> Result<Vec<snaps::tags::SnapshotTag>, Error> {
     values
         .map(|acrs| acrs.split(',').map(|a| a.try_into()).collect())
         .unwrap_or_else(|| Ok(Vec::new()))
@@ -101,6 +104,7 @@ fn parse_argument(value: std::env::Args) -> Result<Command, Error> {
 
     let mut command: Option<&String> = None;
     let mut size = false;
+    let mut take_tag = None;
     let mut indexes: Option<&String> = None;
     let mut acronyms: Option<&String> = None;
     let mut remove = false;
@@ -124,6 +128,7 @@ fn parse_argument(value: std::env::Args) -> Result<Command, Error> {
             }
         } else if arg.starts_with("--") {
             match arg.as_str() {
+                "--tag" => take_tag = iter.next(),
                 "--remove" => remove = true,
                 "--force" => force = true,
                 "--help" => return Ok(Command::Help),
@@ -140,7 +145,11 @@ fn parse_argument(value: std::env::Args) -> Result<Command, Error> {
     };
 
     match cmd.as_str() {
-        "take" => Ok(Command::Take),
+        "take" => {
+            let tag = take_tag.and_then(|t| snaps::tags::SnapshotTag::try_from(t.as_str()).ok());
+            Ok(Command::Take { tag: tag })
+
+        },
 
         "list" if !remove => {
             let indexes = parse_items(indexes)?;
@@ -175,8 +184,8 @@ fn main() -> Result<(), Error> {
 
         Command::Version => println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")),
 
-        Command::Take => {
-            handle_take()?;
+        Command::Take { tag }=> {
+            handle_take(tag)?;
         }
 
         Command::List {
@@ -202,3 +211,7 @@ fn main() -> Result<(), Error> {
 
     Ok(())
 }
+
+
+    
+

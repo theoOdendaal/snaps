@@ -7,8 +7,8 @@ use std::{
 use crate::error::Error;
 use crate::filter::should_ignore;
 
-pub fn handle_take() -> Result<(), Error> {
-    let snapshot_dir = create_snapshot()?;
+pub fn handle_take(tag: Option<crate::tags::SnapshotTag>) -> Result<(), Error> {
+    let snapshot_dir = create_snapshot(tag)?;
 
     let start = Path::new("/");
 
@@ -19,12 +19,17 @@ pub fn handle_take() -> Result<(), Error> {
     Ok(())
 }
 
-fn create_snapshot() -> Result<PathBuf, Error> {
+fn create_snapshot(tag: Option<crate::tags::SnapshotTag>) -> Result<PathBuf, Error> {
     let timestamp = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)?
         .as_secs();
+    
+    let snapshot_name = crate::name::SnapshotName::new(timestamp, tag);
 
-    let location = crate::location::get_host_location()?.join(timestamp.to_string());
+    let dir_name = snapshot_name.to_string();
+
+
+    let location = crate::location::get_host_location()?.join(dir_name);
 
     if location.exists() {
         return Err(Error::Io(std::io::Error::new(
