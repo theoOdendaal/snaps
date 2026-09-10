@@ -6,6 +6,11 @@ pub struct SnapshotName {
     tag: Option<crate::tags::SnapshotTag>,
 }
 
+pub struct ValidatedSnapshotName<'a> {
+    snapshot_name: &'a str,
+    valid_name: bool,
+}
+
 impl std::fmt::Display for SnapshotName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             write!(f, "{}_{}", self.timestamp, self.tag.unwrap_or_default())

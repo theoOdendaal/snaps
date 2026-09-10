@@ -4,8 +4,8 @@ use crate::error::Error;
 
 const METADATA_FILE: &str = "/var/snaps/snapshots/arch-theo/.snapshot-meta";
 
-#[derive(Debug)]
 #[repr(u8)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum RetentionTag {
     Untagged,
     Hourly,
@@ -25,6 +25,21 @@ impl<'a> std::fmt::Display for RetentionTag {
             Self::Monthly => write!(f, "monthly"),
             Self::Adhoc => write!(f, "adhoc"),
         }
+    }
+}
+
+impl RetentionTag {
+    pub fn get_tags_mask(tags: &[RetentionTag]) -> String {
+        format!("{}{}{}{}{}{}",
+            if tags.contains(&RetentionTag::Untagged) { "u" } else {"-"},
+            if tags.contains(&RetentionTag::Hourly) { "h" } else {"-"},
+            if tags.contains(&RetentionTag::Daily) { "d" } else {"-"},
+            if tags.contains(&RetentionTag::Weekly) { "w" } else {"-"},
+            if tags.contains(&RetentionTag::Monthly) { "m" } else {"-"},
+            if tags.contains(&RetentionTag::Adhoc) { "a" } else {"-"},
+            )
+
+
     }
 }
 
@@ -71,6 +86,16 @@ impl<'a> SnapshotMetaData {
         Self { timestamp, tags }
     }
 
+    pub fn tags(&'a self) -> &'a [RetentionTag] {
+        &self.tags
+    }
+
+    pub fn contains_tag(&self, tag: &RetentionTag) -> bool {
+        self.tags.contains(tag)
+    }
+
+    
+
 }
 
 pub fn read_metadata_file_to_string() -> Result<String, Error> {
@@ -110,6 +135,10 @@ pub fn parse_metadata<'a>(file_content: &'a str) -> Result<Vec<SnapshotMetaData>
             tags,
         }); 
     }
+    
+    snapshots.sort_unstable_by(|a, b| b.timestamp.cmp(&a.timestamp));
+
+
     Ok(snapshots)
     
 }

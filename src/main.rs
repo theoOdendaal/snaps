@@ -1,6 +1,5 @@
 use snaps::{
-    commands::{list::handle_list, remove::handle_remove, take::handle_take},
-    error::Error,
+    commands::{checkhealth::handle_checkhealth, list::handle_list, remove::handle_remove, take::handle_take}, error::Error,
 };
 
 // FIXME: Symbolic links should also be established in the snapshot.
@@ -17,16 +16,17 @@ enum Command {
     List {
         size: bool,
         indexes: Option<Vec<usize>>,
-        acronyms: Option<Vec<snaps::tags::SnapshotTag>>,
+        acronyms: Option<Vec<snaps::meta::RetentionTag>>,
     },
     Restore {
         id: usize,
     },
     Remove {
         indexes: Option<Vec<usize>>,
-        acronyms: Option<Vec<snaps::tags::SnapshotTag>>,
+        acronyms: Option<Vec<snaps::meta::RetentionTag>>,
         force: bool,
     },
+    CheckHealth,
     Help,
     Version,
 }
@@ -40,6 +40,7 @@ fn print_help() {
   list                  Display existing snapshots
   restore <ID>          Restore a specific snapshot
   rm                    Permanently remove one or more existing snapshot
+  checkhealth           Sense check configurations
 
 \x1b[1mOptions (for take):\x1b[0m
   --tag <TAG>         Assign specified tag to snapshot [u, h, d, w, a*]
@@ -64,7 +65,7 @@ fn print_help() {
     print!("{}", help_text);
 }
 
-fn parse_acronyms(values: Option<&String>) -> Result<Vec<snaps::tags::SnapshotTag>, Error> {
+fn parse_acronyms(values: Option<&String>) -> Result<Vec<snaps::meta::RetentionTag>, Error> {
     values
         .map(|acrs| acrs.split(',').map(|a| a.try_into()).collect())
         .unwrap_or_else(|| Ok(Vec::new()))
@@ -172,10 +173,14 @@ fn parse_argument(value: std::env::Args) -> Result<Command, Error> {
             })
         }
 
+        "checkhealth" => {
+            Ok(Command::CheckHealth)
+        }
+
         _ => unimplemented!("Unknown command: {}", cmd),
     }
 }
-/*
+
 fn main() -> Result<(), Error> {
     let command = parse_argument(std::env::args())?;
 
@@ -207,13 +212,16 @@ fn main() -> Result<(), Error> {
         } => {
             handle_remove(indexes, acronyms, force)?;
         }
+
+        Command::CheckHealth => {
+            handle_checkhealth(); 
+        }
     }
 
     Ok(())
 }
-*/
 
-fn main() -> Result<(), Error> {
+/*fn main() -> Result<(), Error> {
     
     let content = snaps::meta::read_metadata_file_to_string()?;
     let metadata = snaps::meta::parse_metadata(&content)?;
@@ -223,4 +231,4 @@ fn main() -> Result<(), Error> {
     Ok(())
 }
     
-
+*/

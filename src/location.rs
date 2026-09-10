@@ -32,8 +32,8 @@ pub fn construct_snapshot_directory(snapshot: u64) -> Result<std::path::PathBuf,
     Ok(directory)
 }
 
-pub fn retrieve_snapshots(host_location: &std::path::Path) -> Result<Vec<crate::name::SnapshotName>, Error> {
-    let mut snapshots: Vec<crate::name::SnapshotName> = Vec::with_capacity(30);
+pub fn retrieve_snapshots(host_location: &std::path::Path) -> Result<Vec<u64>, Error> {
+    let mut snapshots: Vec<u64> = Vec::with_capacity(30);
 
     for entry in std::fs::read_dir(host_location)? {
         let entry = entry?;
@@ -42,15 +42,37 @@ pub fn retrieve_snapshots(host_location: &std::path::Path) -> Result<Vec<crate::
             Ok(file_type) if file_type.is_dir() => match entry.file_name().to_str() {
                 Some(file_name) if !file_name.starts_with(".") => {
 
-                    let snapshot_name = crate::name::SnapshotName::from_str(file_name)?;
-
-                    snapshots.push(snapshot_name);
+                    let timestamp = file_name.parse::<u64>()?;
+                    snapshots.push(timestamp);
                 }
                 _ => {}
             },
             _ => continue,
         }
     }
-    snapshots.sort_unstable_by(|a, b| b.timestamp().cmp(&a.timestamp()));
+    snapshots.sort_unstable_by(|a, b| b.cmp(&a));
     Ok(snapshots)
 }
+
+/*
+// Will only return a Err if snapshot directory is not found.
+pub fn retrieve_snapshots_safe(host_location: &std::path::Path) -> Result<Vec<String>, Error> {
+    let mut snapshots: Vec<String> = Vec::with_capacity(30);
+    
+    for entry in std::fs::read_dir(host_location)? {
+        let entry = entry?;
+
+        match entry.file_type() {
+            Ok(file_type) if file_type.is_dir() => match entry.file_name().to_str() {
+                Some(file_name) if file_name == ".trash" => {
+
+                    snapshots.push(file_name.into());
+                }
+                _ => {}
+            },
+            _ => continue,
+        }
+    }
+    Ok(snapshots)
+}
+*/

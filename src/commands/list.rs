@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use crate::{error::Error, style::Colour, tags::SnapshotTag};
+use crate::{error::Error, meta::RetentionTag, style::Colour};
 
 // FIXME: How would tagging of ad-hoc snapshots work?
 
@@ -13,7 +13,7 @@ const WEEK_IN_SECONDS: u64 = DAY_IN_SECONDS * 7;
 pub fn handle_list(
     display_size: bool,
     select_indexes: Option<Vec<usize>>,
-    select_tags: Option<Vec<SnapshotTag>>,
+    select_tags: Option<Vec<RetentionTag>>,
 ) -> Result<(), Error> {
     if display_size {
         crate::size::compute_par_snapshot_sizes()?;
@@ -30,26 +30,23 @@ pub fn handle_list(
     let latest_location_target = std::fs::read_link(&latest_location)?;
     let latest_snapshot = latest_location_target.file_name().and_then(|s| s.to_str());
 
+    let metadata_file_content = crate::meta::read_metadata_file_to_string()?;
+    let metadata = crate::meta::parse_metadata(&metadata_file_content)?;
+
+
     let stdout = std::io::stdout();
     let mut writer = std::io::BufWriter::new(stdout.lock());
 
     for i in 0..snapshot_count {
         let index = snapshot_count - 1 - i;
-        let current_snapshot = snapshots[index];
-        let (snapshot, tag) = (current_snapshot.timestamp(), current_snapshot.tag());
+        let snapshot = snapshots[index];
         let (year, month, day, hour, min, sec) = epoch_to_datetime(snapshot);
 
-        let tag_string = if let Some(tag) = tag {
-            tag.get_tag_mask()
-        } else {
-            "-----".into()
-        };
+        let tags = metadata[index].tags();
 
+        let tag_string = crate::meta::RetentionTag::get_tags_mask(tags);
 
-        let mut is_selected = match select_tags.clone() {
-            Some(selected_tags) if tag.as_ref().is_some_and(|tag| selected_tags.contains(tag)) => true,
-            _ => false,
-        };
+        let mut is_selected = select_tags.clone().is_some_and(|selected| selected.iter().any(|t| tags.contains(t)));
 
         if let Some(indexes) = &select_indexes
             && indexes.contains(&i)
@@ -59,7 +56,7 @@ pub fn handle_list(
         }
 
         let is_latest = match latest_snapshot {
-            Some(name) => name == current_snapshot.to_string(),
+            Some(name) => name == snapshot.to_string(),
             None => false,
         };
 

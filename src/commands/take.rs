@@ -26,10 +26,11 @@ fn create_snapshot(tag: Option<crate::tags::SnapshotTag>) -> Result<PathBuf, Err
     
     let snapshot_name = crate::name::SnapshotName::new(timestamp, tag);
 
-    let dir_name = snapshot_name.to_string();
+    //let dir_name = snapshot_name.to_string();
 
 
-    let location = crate::location::get_host_location()?.join(dir_name);
+    //let location = crate::location::get_host_location()?.join(dir_name);
+    let location = crate::location::get_host_location()?.join(snapshot_name.timestamp().to_string());
 
     if location.exists() {
         return Err(Error::Io(std::io::Error::new(
