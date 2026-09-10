@@ -7,3 +7,4 @@ pub mod style;
 pub mod tag;
 pub mod tags;
 pub mod name;
+pub mod meta;
