@@ -94,7 +94,7 @@ impl TryFrom<char> for RetentionTag {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct SnapshotMetaData {
     timestamp: u64,
     tags: Vec<RetentionTag>,

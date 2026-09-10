@@ -20,13 +20,14 @@ pub fn handle_remove(
 
     let metadata_file_content = crate::meta::read_metadata_file_to_string()?;
     let mut metadata = crate::meta::parse_metadata(&metadata_file_content)?;
+
     let metadata_count = metadata.len();
 
     let mut iter = snapshots.iter().enumerate().peekable();
 
     while let Some((i, snap)) = iter.next() {
         let index = snapshot_count - 1 - i;
-
+        
         let tags = metadata[index].tags();
 
         let matches_index = select_indexes
