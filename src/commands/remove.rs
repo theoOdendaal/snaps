@@ -9,7 +9,6 @@ pub fn handle_remove(
 ) -> Result<(), Error> {
     let host_location = crate::location::get_host_location()?;
     let snapshots = crate::location::retrieve_snapshots(&host_location)?;
-
     let snapshot_count = snapshots.len();
 
     let latest_location = crate::location::get_latest_location()?;
@@ -21,7 +20,8 @@ pub fn handle_remove(
 
 
     let metadata_file_content = crate::meta::read_metadata_file_to_string()?;
-    let metadata = crate::meta::parse_metadata(&metadata_file_content)?;
+    let mut metadata = crate::meta::parse_metadata(&metadata_file_content)?;
+    let metadata_count = metadata.len();
 
     let mut iter = snapshots.iter().enumerate().peekable();
 
@@ -42,6 +42,8 @@ pub fn handle_remove(
                 Some(latest) => &latest == snap,
                 None => false,
             };
+            
+            metadata.remove(index);
 
             let snapshot_directory = crate::location::construct_snapshot_directory(*snap)?;
 
@@ -76,6 +78,10 @@ pub fn handle_remove(
                 remove_snapshot(&snapshot_directory)?;
             }
         }
+    }
+
+    if metadata_count != metadata.len() { 
+        crate::meta::SnapshotMetaData::overwrite_metadata_file(&metadata)?;
     }
 
     Ok(())

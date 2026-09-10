@@ -111,7 +111,13 @@ impl<'a> SnapshotMetaData {
         Ok(())
     }
 
-    
+    pub fn overwrite_metadata_file(snapshots: &[SnapshotMetaData]) -> Result<(), Error> {
+        let mut file = std::fs::File::create(METADATA_FILE)?;
+        for line in snapshots {
+            writeln!(file, "{}", line)?;
+        }
+        Ok(())
+    }
 
 }
 

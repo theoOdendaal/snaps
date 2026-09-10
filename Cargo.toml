@@ -2,3 +2,10 @@
 name = "snaps"
 version = "0.1.0"
 edition = "2024"
+
+[profile.release]
+opt-level = "z"     # Optimize for size ("s" is also worth testing)
+lto = true          # Enable Link-Time Optimization across all crates
+codegen-units = 1   # Reduce parallel code generation units to increase LTO optimization
+panic = "abort"     # Strip unwinding stack trace logic on panic
+strip = true        # Automatically strip symbols and debug information from the binary
