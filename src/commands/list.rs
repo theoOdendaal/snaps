@@ -24,7 +24,7 @@ pub fn handle_list(
 
     let latest_location = crate::location::get_latest_location()?;
     let latest_location_target = std::fs::read_link(&latest_location)?;
-    let latest_snapshot = latest_location_target.file_name().and_then(|s| s.to_str());
+    let latest_snapshot = latest_location_target.file_name().and_then(|s| s.to_str()?.parse::<u64>().ok());
 
     let metadata_file_content = crate::meta::read_metadata_file_to_string()?;
     let metadata = crate::meta::parse_metadata(&metadata_file_content)?;
@@ -34,11 +34,12 @@ pub fn handle_list(
 
     for i in 0..snapshot_count {
         let index = snapshot_count - 1 - i;
+        
         let snapshot = snapshots[index];
+        let tags = metadata[index].tags();
+
         let (year, month, day, hour, min, sec) = epoch_to_datetime(snapshot);
 
-        let tags = metadata[index].tags();
-        //let tags = metadata[i].tags();
 
         let tag_string = crate::meta::RetentionTag::get_tags_mask(tags);
 
@@ -54,7 +55,7 @@ pub fn handle_list(
         }
 
         let is_latest = match latest_snapshot {
-            Some(name) => name == snapshot.to_string(),
+            Some(name) => name == snapshot,
             None => false,
         };
 

@@ -17,54 +17,48 @@ pub enum RetentionTag {
     Adhoc,
 }
 
-impl std::fmt::Display for RetentionTag {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl RetentionTag {
+    pub const ALL: [RetentionTag;6] = [
+        Self::Untagged,
+        Self::Hourly,
+        Self::Daily,
+        Self::Weekly,
+        Self::Monthly,
+        Self::Adhoc
+    ];
+
+    pub const fn as_char(self) -> char {
         match self {
-            Self::Untagged => write!(f, "untagged"),
-            Self::Hourly => write!(f, "hourly"),
-            Self::Daily => write!(f, "daily"),
-            Self::Weekly => write!(f, "weekly"),
-            Self::Monthly => write!(f, "monthly"),
-            Self::Adhoc => write!(f, "adhoc"),
+            Self::Untagged => 'u',
+            Self::Hourly => 'h',
+            Self::Daily => 'd',
+            Self::Weekly => 'w',
+            Self::Monthly => 'm',
+            Self::Adhoc => 'a',
         }
     }
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Untagged => "untagged",
+            Self::Hourly => "hourly",
+            Self::Daily => "daily",
+            Self::Weekly => "weekly",
+            Self::Monthly => "monthly",
+            Self::Adhoc => "adhoc",
+        }
+    }
+
+    pub fn get_tags_mask(tags: &[RetentionTag]) -> String {
+        Self::ALL.iter().map(|tag| if tags.contains(tag) { tag.as_char() } else {'-'} ).collect()
+    }
+
+
 }
 
-impl RetentionTag {
-    pub fn get_tags_mask(tags: &[RetentionTag]) -> String {
-        format!(
-            "{}{}{}{}{}{}",
-            if tags.contains(&RetentionTag::Untagged) {
-                "u"
-            } else {
-                "-"
-            },
-            if tags.contains(&RetentionTag::Hourly) {
-                "h"
-            } else {
-                "-"
-            },
-            if tags.contains(&RetentionTag::Daily) {
-                "d"
-            } else {
-                "-"
-            },
-            if tags.contains(&RetentionTag::Weekly) {
-                "w"
-            } else {
-                "-"
-            },
-            if tags.contains(&RetentionTag::Monthly) {
-                "m"
-            } else {
-                "-"
-            },
-            if tags.contains(&RetentionTag::Adhoc) {
-                "a"
-            } else {
-                "-"
-            },
-        )
+impl std::fmt::Display for RetentionTag {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+       f.write_str(self.as_str()) 
     }
 }
 
