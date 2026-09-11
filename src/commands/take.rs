@@ -5,6 +5,9 @@ use std::{
 use crate::filter::should_ignore;
 use crate::{error::Error, location::create_snapshot_name};
 
+// FIXME: snapshot should be stored in a .tmp folder, and moved
+// atomically after it has been successfully created.
+
 pub fn handle_take(tag: Option<crate::meta::RetentionTag>) -> Result<(), Error> {
     let (timestamp, snapshot_dir) = create_snapshot_name()?;
 
@@ -17,7 +20,7 @@ pub fn handle_take(tag: Option<crate::meta::RetentionTag>) -> Result<(), Error> 
     set_latest_symlink(&snapshot_dir)?;
 
     let tags = vec![tag.unwrap_or_default()];
-    let metadata = crate::meta::SnapshotMetaData::new(timestamp, tags);
+    let metadata = crate::meta::SnapshotMetaData::new(timestamp, tags)?;
     metadata.append_to_metadata_file()?;
 
     Ok(())

@@ -1,24 +1,77 @@
-// checkhealth should never fail, as it should be
 // used to validate existing snapshots and configuration
 // files.
 
 use crate::error::Error;
 
-pub fn handle_checkhealth() -> Result<(), Error> {
+pub const ANSI_WARNING: &str = "\x1B[38;5;3m";
+pub const ANSI_INFO: &str = "\x1B[38;5;29m";
+pub const ANSI_RESET: &str = "\x1B[0m";
+
+pub fn handle_checkhealth(dump: bool) -> Result<(), Error> {
+    
+    if dump {
+        crate::meta::dump_snapshots()?;
+        return Ok(());
+    }
+
+
     let metadata_file_content = crate::meta::read_metadata_file_to_string()?;
     let metadata = crate::meta::parse_metadata(&metadata_file_content)?;
-    let metadata_count = metadata.len();
 
     let host_location = crate::location::get_host_location()?;
     let snapshots = crate::location::retrieve_snapshots(&host_location)?;
-    let snapshot_count = snapshots.len();
+    
+    let mut m_iter = metadata.iter().map(|m| m.timestamp()).peekable();
+    let mut s_iter = snapshots.iter().peekable();
 
-    if metadata_count != snapshot_count {
-        println!(
-            "Disconnect between metadata count {} and snapshot count {}",
-            metadata_count, snapshot_count
-        );
+    // Both metadata and snapshots are ordered from
+    // greatest to smallest.
+    while m_iter.peek().is_some() || s_iter.peek().is_some() {
+
+        match (m_iter.peek(), s_iter.peek()) {
+            (Some(a), Some(b)) => {
+                
+                if a == *b {
+                    print_matched(a);
+                    m_iter.next();
+                    s_iter.next();
+                } else if a < *b {
+                    print_metadata_incomplete(b);
+                    s_iter.next();
+                } else {
+                    print_missing_snapshot(a);
+                    m_iter.next();
+                } 
+
+            },
+
+            (Some(a), None) => {
+                print_missing_snapshot(a);
+                m_iter.next();
+            },
+            
+            (None, Some(b)) => {
+                print_metadata_incomplete(b);
+                s_iter.next();
+            },
+
+            (None, None) => { unreachable!() },
+
+        }
     }
 
     Ok(())
 }
+
+fn print_matched(timestamp: &u64) {
+    println!("{ANSI_INFO}{timestamp} -> Matched{ANSI_RESET}")
+}
+
+fn print_metadata_incomplete(timestamp: &u64) {
+    println!("{ANSI_WARNING}{timestamp} -> Metadata incomplete{ANSI_RESET}");
+}
+
+fn print_missing_snapshot(timestamp: &u64) {
+    println!("{ANSI_WARNING}{timestamp} -> Missing snapshot{ANSI_RESET}");
+}
+

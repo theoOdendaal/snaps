@@ -32,7 +32,7 @@ enum Command {
         acronyms: Option<Vec<snaps::meta::RetentionTag>>,
         force: bool,
     },
-    CheckHealth,
+    CheckHealth { dump: bool },
     Help,
     Version,
 }
@@ -63,6 +63,9 @@ fn print_help() {
   -i <ITEMS>            Select snapshot(s) using using indexes (e.x. 1 or 1,3,4 or 1-21)
   -a <ACRONYMS>         Remove snapshot(s) selected using tag acronyms [u, t, y, d, w]
   --force               Force action without explicit confirmation
+
+\x1b[1mOptions (for checkhealth):\x1b[0m
+  --dump                Dump the existing snapshot directory into the metadata file
 
 \x1b[1mGeneral Options:\x1b[0m
   -h, --help            Print help information
@@ -116,6 +119,8 @@ fn parse_argument(value: std::env::Args) -> Result<Command, Error> {
     let mut acronyms: Option<&String> = None;
     let mut remove = false;
     let mut force = false;
+    let mut dump = false;
+
     //let mut id: Option<&String> = None;
 
     // First argument is always the bin
@@ -140,6 +145,7 @@ fn parse_argument(value: std::env::Args) -> Result<Command, Error> {
                 "--force" => force = true,
                 "--help" => return Ok(Command::Help),
                 "--version" => return Ok(Command::Version),
+                "--dump" => dump = true,
                 _ => unimplemented!("Invalid long argument: {}", arg),
             }
         } else {
@@ -178,7 +184,7 @@ fn parse_argument(value: std::env::Args) -> Result<Command, Error> {
             })
         }
 
-        "checkhealth" => Ok(Command::CheckHealth),
+        "checkhealth" => Ok(Command::CheckHealth { dump }),
 
         _ => unimplemented!("Unknown command: {}", cmd),
     }
@@ -216,22 +222,10 @@ fn main() -> Result<(), Error> {
             handle_remove(indexes, acronyms, force)?;
         }
 
-        Command::CheckHealth => {
-            handle_checkhealth()?;
+        Command::CheckHealth { dump }=> {
+            handle_checkhealth(dump)?;
         }
     }
 
     Ok(())
 }
-
-/*fn main() -> Result<(), Error> {
-
-    let content = snaps::meta::read_metadata_file_to_string()?;
-    let metadata = snaps::meta::parse_metadata(&content)?;
-
-    println!("{:?}", metadata);
-
-    Ok(())
-}
-
-*/

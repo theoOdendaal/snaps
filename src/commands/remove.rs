@@ -20,6 +20,8 @@ pub fn handle_remove(
 
     let metadata_file_content = crate::meta::read_metadata_file_to_string()?;
     let mut metadata = crate::meta::parse_metadata(&metadata_file_content)?;
+    
+    println!("{:?}", metadata);
 
     let metadata_count = metadata.len();
 
@@ -43,6 +45,8 @@ pub fn handle_remove(
                 Some(latest) => &latest == snap,
                 None => false,
             };
+
+            println!("{:?}", metadata[index]);
 
             metadata.remove(index);
 

@@ -1,7 +1,7 @@
 use std::fs::OpenOptions;
 use std::io::Write;
 
-use crate::error::Error;
+use crate::error::Error::{self, EmptyTag};
 
 const METADATA_FILE: &str = "/var/snaps/snapshots/arch-theo/.snapshot-meta";
 
@@ -113,8 +113,17 @@ impl std::fmt::Display for SnapshotMetaData {
 }
 
 impl<'a> SnapshotMetaData {
-    pub fn new(timestamp: u64, tags: Vec<RetentionTag>) -> Self {
-        Self { timestamp, tags }
+    pub fn new(timestamp: u64, tags: Vec<RetentionTag>) -> Result<Self, Error> {
+        
+        if tags.is_empty() {
+            return Err(Error::EmptyTag("Unable to create snapshot metadata with empty tag".into()));
+        }
+
+        Ok(Self { timestamp, tags })
+    }
+
+    pub fn timestamp(&self) -> u64 {
+        self.timestamp
     }
 
     pub fn tags(&'a self) -> &'a [RetentionTag] {
@@ -136,6 +145,7 @@ impl<'a> SnapshotMetaData {
     }
 
     pub fn overwrite_metadata_file(snapshots: &[SnapshotMetaData]) -> Result<(), Error> {
+
         let mut file = std::fs::File::create(METADATA_FILE)?;
         for line in snapshots {
             writeln!(file, "{}", line)?;
@@ -179,4 +189,16 @@ pub fn parse_metadata(file_content: &str) -> Result<Vec<SnapshotMetaData>, Error
     snapshots.sort_unstable_by_key(|a| std::cmp::Reverse(a.timestamp));
 
     Ok(snapshots)
+}
+
+pub fn dump_snapshots() -> Result<(), Error> {
+
+    let host_location = crate::location::get_host_location()?;
+    let snapshots = crate::location::retrieve_snapshots(&host_location)?;
+
+    let metadata  = snapshots.iter().map(|s| SnapshotMetaData::new(*s, vec![RetentionTag::Untagged])).collect::<Result<Vec<SnapshotMetaData>, Error>>()?;
+    
+    crate::meta::SnapshotMetaData::overwrite_metadata_file(&metadata)?;
+
+    Ok(())
 }

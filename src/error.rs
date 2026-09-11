@@ -8,6 +8,7 @@ pub enum Error {
     InvalidSnapshot(u64),
 
     UnknownTag(String),
+    EmptyTag(String),
 }
 
 impl std::fmt::Display for Error {
@@ -24,6 +25,7 @@ impl std::fmt::Display for Error {
             Self::FromStrError(err) => write!(f, "{}", err),
             Self::InvalidSnapshot(err) => write!(f, "Invalid snapshot: {}", err),
             Self::UnknownTag(err) => write!(f, "Unknown tag: {}", err),
+            Self::EmptyTag(err) => write!(f, "{}", err),
         }
     }
 }
@@ -38,6 +40,7 @@ impl std::error::Error for Error {
             Self::FromStrError(_) => None,
             Self::InvalidSnapshot(_) => None,
             Self::UnknownTag(_) => None,
+            Self::EmptyTag(_) => None,
         }
     }
 }
