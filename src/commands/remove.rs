@@ -9,40 +9,50 @@ pub fn handle_remove(
 ) -> Result<(), Error> {
     let host_location = crate::location::get_host_location()?;
     let snapshots = crate::location::retrieve_snapshots(&host_location)?;
-    let snapshot_count = snapshots.len();
 
     let latest_location = crate::location::get_latest_location()?;
-    let mut latest_location_target = std::fs::read_link(&latest_location)?;
-    let mut latest_snapshot = latest_location_target
-        .file_name()
-        .and_then(|s| s.to_str())
-        .and_then(|s| s.parse::<u64>().ok());
+    let latest_location_target = std::fs::read_link(&latest_location)?;
+    let latest_snapshot = latest_location_target.file_name().and_then(|s| s.to_str()?.parse::<u64>().ok());
+    
+    // Used to update the latest symlink,
+    // if necessary.
+    let mut latest_preceding = None;
 
     let metadata_file_content = crate::meta::read_metadata_file_to_string()?;
     let mut metadata = crate::meta::parse_metadata(&metadata_file_content)?;
 
     let metadata_count = metadata.len();
 
-    let mut iter = snapshots.iter().enumerate().peekable();
+    let mut index_iter = select_indexes.into_iter().flatten().rev().peekable();
 
-    while let Some((i, snap)) = iter.next() {
-        let index = snapshot_count - 1 - i;
+    // Snapshots are traversed from oldest to newest. This decision
+    // has been made to more effeciently update 'latest'.
+    // This does however require the symlink to not be the
+    // oldest, as there won't be a latest preceding.
+    for (i, snap) in snapshots.iter().enumerate().rev() {
         
         let tags = metadata[i].tags();
 
-        let matches_index = select_indexes
-            .as_ref()
-            .is_some_and(|selected| selected.contains(&index));
-
-        let matches_tag = select_tags
+        let mut is_selected = select_tags
             .clone()
             .is_some_and(|selected| selected.iter().any(|t| tags.contains(t)));
+        
+        if !is_selected && let Some(idx) = index_iter.peek() {
+            // FIXME: This logic requires that select_indexes be sorted
+            // ascending.
+                if *idx == i {
+                    index_iter.next();
+                    is_selected = true;
+                } else if *idx > i {
+                    index_iter.next();
+                }
+        }
 
-        if matches_index || matches_tag {
-            let is_latest = match latest_snapshot {
-                Some(latest) => &latest == snap,
-                None => false,
-            };
+        if !is_selected {
+                latest_preceding = Some(snap);
+
+        } else if is_selected {
+            let is_latest = latest_snapshot.is_some_and(|l| l == *snap); 
 
             let snapshot_directory = crate::location::construct_snapshot_directory(*snap)?;
 
@@ -63,19 +73,22 @@ pub fn handle_remove(
 
                 metadata.remove(i);
 
+
                 if is_latest {
-                    match iter.peek() {
-                        Some((_, name_peek)) => {
-                            let link = *name_peek;
-                            let link_dirctory =
-                                crate::location::construct_snapshot_directory(*link)?;
-                            set_latest_symlink(&link_dirctory)?;
-                            latest_snapshot = Some(*link);
-                            latest_location_target = link_dirctory;
+                    match latest_preceding {
+                        Some(prec) => {
+                            let link_directory = crate::location::construct_snapshot_directory(*prec)?;
+                            crate::location::set_latest_symlink(&link_directory)?;
                         }
-                        None => std::fs::remove_file(&latest_location_target)?,
-                    }
+                        // This branch will be reached if the 'latest' symlink
+                        // is the oldest current snapshot.
+                        // FIXME: This should be improved, although the
+                        // oldest snapshot being the 'latest' is unlikely,
+                        // it will still cause problems.
+                        None => { crate::location::remove_latest_symlink()?; }
+                    } 
                 }
+                
                 remove_snapshot(&snapshot_directory)?;
             }
         }
@@ -84,19 +97,6 @@ pub fn handle_remove(
     if metadata_count != metadata.len() {
         crate::meta::SnapshotMetaData::overwrite_metadata_file(&metadata)?;
     }
-
-    Ok(())
-}
-
-fn set_latest_symlink(snapshot_dir: &std::path::Path) -> Result<(), Error> {
-    let link = crate::location::get_latest_location()?;
-
-    if link.exists() || std::fs::symlink_metadata(&link).is_ok() {
-        std::fs::remove_file(&link)?;
-    }
-
-    #[cfg(unix)]
-    std::os::unix::fs::symlink(snapshot_dir, &link)?;
 
     Ok(())
 }

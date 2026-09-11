@@ -14,7 +14,14 @@ pub fn handle_checkhealth(dump: bool) -> Result<(), Error> {
         return Ok(());
     }
 
+    // Validate existence of 'latest' symlink.
+    let latest_location = crate::location::get_latest_location()?;
+    if !latest_location.exists() || std::fs::symlink_metadata(latest_location).is_err() {
+        print_broken_symlink();
+    }
 
+    // Reconcile the metadata file with the snapshot
+    // directories.
     let metadata_file_content = crate::meta::read_metadata_file_to_string()?;
     let metadata = crate::meta::parse_metadata(&metadata_file_content)?;
 
@@ -73,5 +80,9 @@ fn print_metadata_incomplete(timestamp: &u64) {
 
 fn print_missing_snapshot(timestamp: &u64) {
     println!("{ANSI_WARNING}{timestamp} -> Missing snapshot{ANSI_RESET}");
+}
+
+fn print_broken_symlink() {
+    println!("{ANSI_WARNING}Broken 'latest' symlink{ANSI_RESET}");
 }
 

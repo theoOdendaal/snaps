@@ -11,7 +11,10 @@ pub fn handle_list(
     select_indexes: Option<Vec<usize>>,
     select_tags: Option<Vec<RetentionTag>>,
 ) -> Result<(), Error> {
-    
+
+    // TODO: the -s flag should append
+    // to the normal list, and not
+    // have a separate display.
     if display_size {
         crate::size::compute_par_snapshot_sizes()?;
         return Ok(());
@@ -41,24 +44,20 @@ pub fn handle_list(
 
         let tag_string = crate::meta::RetentionTag::get_tags_mask(tags);
 
-
         // Check whether tags match.
         let mut is_selected = select_tags
             .clone()
             .is_some_and(|selected| selected.iter().any(|t| tags.contains(t)));
 
-        if !is_selected && index_iter.peek().is_some() {
-            
+        if !is_selected && let Some(idx) = index_iter.peek() {
             // FIXME: This logic requires that select_indexes be sorted
             // ascending.
-            if let Some(idx) = index_iter.peek() {
                 if *idx == i {
                     index_iter.next();
                     is_selected = true;
                 } else if *idx < i {
-                        index_iter.next();
+                    index_iter.next();
                 }
-            }
 
         }
 

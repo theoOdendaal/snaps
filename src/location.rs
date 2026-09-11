@@ -73,3 +73,26 @@ pub fn retrieve_snapshots(host_location: &Path) -> Result<Vec<u64>, Error> {
     snapshots.sort_unstable_by(|a, b| b.cmp(a));
     Ok(snapshots)
 }
+
+// Update 'latest' symlink to reference a new snapshot,
+// after removing the existing symlink.
+pub fn set_latest_symlink(snapshot_dir: &Path) -> Result<(), Error> {
+    let link = crate::location::get_latest_location()?;
+
+    if link.exists() || std::fs::symlink_metadata(&link).is_ok() {
+        std::fs::remove_file(&link)?;
+    }
+
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(snapshot_dir, &link)?;
+
+    Ok(())
+}
+
+pub fn remove_latest_symlink() -> Result<(), Error> {
+    let link = crate::location::get_latest_location()?;
+    if link.exists() || std::fs::symlink_metadata(&link).is_ok() {
+        std::fs::remove_file(&link)?;
+    }
+    Ok(())
+}

@@ -17,7 +17,7 @@ pub fn handle_take(tag: Option<crate::meta::RetentionTag>) -> Result<(), Error> 
     //orchestrate_parallel_fs_walk(start, &snapshot_dir, &latest_location)?;
     linear_snapshot(start, &snapshot_dir, &latest_location)?;
 
-    set_latest_symlink(&snapshot_dir)?;
+    crate::location::set_latest_symlink(&snapshot_dir)?;
 
     let tags = vec![tag.unwrap_or_default()];
     let metadata = crate::meta::SnapshotMetaData::new(timestamp, tags)?;
@@ -69,21 +69,6 @@ let mut stack = vec![path.to_path_buf()];
             }
         }
     }
-
-    Ok(())
-}
-
-// Update 'latest' symlink to reference a new snapshot,
-// after removing the existing symlink.
-fn set_latest_symlink(snapshot_dir: &Path) -> Result<(), Error> {
-    let link = crate::location::get_latest_location()?;
-
-    if link.exists() || std::fs::symlink_metadata(&link).is_ok() {
-        std::fs::remove_file(&link)?;
-    }
-
-    #[cfg(unix)]
-    std::os::unix::fs::symlink(snapshot_dir, &link)?;
 
     Ok(())
 }
