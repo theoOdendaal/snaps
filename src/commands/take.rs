@@ -26,7 +26,7 @@ pub fn handle_take(tag: Option<crate::meta::RetentionTag>) -> Result<(), Error> 
     Ok(())
 }
 
-fn linear_snapshot(path: &Path, snapshot_dir: &Path, latest_dir: &PathBuf) -> Result<(), Error> {
+fn linear_snapshot(path: &Path, snapshot_dir: &Path, latest_dir: &Path) -> Result<(), Error> {
 let mut stack = vec![path.to_path_buf()];
 
     while let Some(path) = stack.pop() {
@@ -111,10 +111,7 @@ fn incremental_copy(source_dir: &DirEntry, target_dir: &Path, latest_dir: &Path)
 
     // Rather than checking exists and then calling metadata, retrieve the
     // metadata and use this as a existence condition.
-    let previous_snapshot_metadata = match std::fs::symlink_metadata(&previous_snapshot) {
-        Ok(metadata) => Some(metadata),
-        Err(_) => None,
-    };
+    let previous_snapshot_metadata = std::fs::symlink_metadata(&previous_snapshot).ok();
 
     let source_metadata = source_dir.metadata()?;
     if let Some(previous_metadata) = previous_snapshot_metadata && is_file_unchanged(&source_metadata, &previous_metadata) {
@@ -156,7 +153,7 @@ struct CopyTask {
 fn orchestrate_parallel_fs_walk(
     path: &Path,
     snapshot_dir: &Path,
-    latest_dir: &PathBuf,
+    latest_dir: &Path,
 ) -> Result<(), Error> {
 
     let (tx, rx) = mpsc::sync_channel::<CopyTask>(10_000);
@@ -170,7 +167,7 @@ fn orchestrate_parallel_fs_walk(
 
     for _ in 0..num_workers {
         let rx_clone = Arc::clone(&rx);
-        let latest_dir = latest_dir.clone();
+        let latest_dir = latest_dir.to_path_buf();
 
         let handle = std::thread::spawn(move || -> Result<(), Error> {
             loop {
