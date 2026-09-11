@@ -20,8 +20,6 @@ pub fn handle_remove(
 
     let metadata_file_content = crate::meta::read_metadata_file_to_string()?;
     let mut metadata = crate::meta::parse_metadata(&metadata_file_content)?;
-    
-    println!("{:?}", metadata);
 
     let metadata_count = metadata.len();
 
@@ -30,7 +28,7 @@ pub fn handle_remove(
     while let Some((i, snap)) = iter.next() {
         let index = snapshot_count - 1 - i;
         
-        let tags = metadata[index].tags();
+        let tags = metadata[i].tags();
 
         let matches_index = select_indexes
             .as_ref()
@@ -45,10 +43,6 @@ pub fn handle_remove(
                 Some(latest) => &latest == snap,
                 None => false,
             };
-
-            println!("{:?}", metadata[index]);
-
-            metadata.remove(index);
 
             let snapshot_directory = crate::location::construct_snapshot_directory(*snap)?;
 
@@ -66,6 +60,8 @@ pub fn handle_remove(
 
             if input.trim().to_lowercase() == "y" {
                 println!("Removing: {:?}", snapshot_directory);
+
+                metadata.remove(i);
 
                 if is_latest {
                     match iter.peek() {

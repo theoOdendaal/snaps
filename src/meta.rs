@@ -1,7 +1,7 @@
 use std::fs::OpenOptions;
 use std::io::Write;
 
-use crate::error::Error::{self, EmptyTag};
+use crate::error::Error;
 
 const METADATA_FILE: &str = "/var/snaps/snapshots/arch-theo/.snapshot-meta";
 
@@ -52,7 +52,6 @@ impl RetentionTag {
     pub fn get_tags_mask(tags: &[RetentionTag]) -> String {
         Self::ALL.iter().map(|tag| if tags.contains(tag) { tag.as_char() } else {'-'} ).collect()
     }
-
 
 }
 
@@ -191,6 +190,9 @@ pub fn parse_metadata(file_content: &str) -> Result<Vec<SnapshotMetaData>, Error
     Ok(snapshots)
 }
 
+// FIXME: Make another permutation that only correct delta's, i.e.
+// those entries that differ from the dir. As its a bit drastic to
+// completely overwrite everything.
 pub fn dump_snapshots() -> Result<(), Error> {
 
     let host_location = crate::location::get_host_location()?;

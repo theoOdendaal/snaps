@@ -98,7 +98,7 @@ fn is_file_unchanged(source: &Metadata, target: &Metadata) -> bool {
 
 }
 
-fn incremental_copy(source_dir: &DirEntry, target_dir: &Path, latest_dir: &PathBuf) -> Result<(), Error> {
+fn incremental_copy(source_dir: &DirEntry, target_dir: &Path, latest_dir: &Path) -> Result<(), Error> {
 
     let source_dir_path = source_dir.path();
 

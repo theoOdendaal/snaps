@@ -11,6 +11,7 @@ pub fn handle_list(
     select_indexes: Option<Vec<usize>>,
     select_tags: Option<Vec<RetentionTag>>,
 ) -> Result<(), Error> {
+    
     if display_size {
         crate::size::compute_par_snapshot_sizes()?;
         return Ok(());
@@ -19,8 +20,6 @@ pub fn handle_list(
     let hostname = crate::location::get_hostname()?;
     let host_location = crate::location::get_host_location()?;
     let snapshots = crate::location::retrieve_snapshots(&host_location)?;
-
-    let snapshot_count = snapshots.len();
 
     let latest_location = crate::location::get_latest_location()?;
     let latest_location_target = std::fs::read_link(&latest_location)?;
@@ -32,32 +31,38 @@ pub fn handle_list(
     let stdout = std::io::stdout();
     let mut writer = std::io::BufWriter::new(stdout.lock());
 
-    for i in 0..snapshot_count {
-        let index = snapshot_count - 1 - i;
-        
-        let snapshot = snapshots[index];
-        let tags = metadata[index].tags();
+    let mut index_iter = select_indexes.into_iter().flatten().peekable();
 
-        let (year, month, day, hour, min, sec) = epoch_to_datetime(snapshot);
+    for (i, snapshot) in snapshots.iter().enumerate() {
 
+        let tags = metadata[i].tags();
+
+        let (year, month, day, hour, min, sec) = epoch_to_datetime(*snapshot);
 
         let tag_string = crate::meta::RetentionTag::get_tags_mask(tags);
 
+
+        // Check whether tags match.
         let mut is_selected = select_tags
             .clone()
             .is_some_and(|selected| selected.iter().any(|t| tags.contains(t)));
 
-        if let Some(indexes) = &select_indexes
-            && indexes.contains(&i)
-            && !is_selected
-        {
-            is_selected = true;
+        if !is_selected && index_iter.peek().is_some() {
+            
+            // FIXME: This logic requires that select_indexes be sorted
+            // ascending.
+            if let Some(idx) = index_iter.peek() {
+                if *idx == i {
+                    index_iter.next();
+                    is_selected = true;
+                } else if *idx < i {
+                        index_iter.next();
+                }
+            }
+
         }
 
-        let is_latest = match latest_snapshot {
-            Some(name) => name == snapshot,
-            None => false,
-        };
+        let is_latest = latest_snapshot.is_some_and(|l| l == *snapshot);
 
         let latest_prefix = if is_latest { "[L]" } else { "" };
 

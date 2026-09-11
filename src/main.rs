@@ -191,6 +191,9 @@ fn parse_argument(value: std::env::Args) -> Result<Command, Error> {
 }
 
 fn main() -> Result<(), Error> {
+    
+    let start = std::time::Instant::now();
+
     let command = parse_argument(std::env::args())?;
 
     match command {
@@ -226,6 +229,10 @@ fn main() -> Result<(), Error> {
             handle_checkhealth(dump)?;
         }
     }
+    
+    let duration = start.elapsed();
+    println!("Execution time: {:?}", duration);
+
 
     Ok(())
 }
