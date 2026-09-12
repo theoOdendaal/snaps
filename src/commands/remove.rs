@@ -54,7 +54,7 @@ pub fn handle_remove(
         } else if is_selected {
             let is_latest = latest_snapshot.is_some_and(|l| l == *snap); 
 
-            let snapshot_directory = crate::location::construct_snapshot_directory(*snap)?;
+            let snapshot_directory = crate::location::construct_snapshot_directory_name(*snap)?;
 
             let mut input = if force {
                 String::from("y")
@@ -77,7 +77,7 @@ pub fn handle_remove(
                 if is_latest {
                     match latest_preceding {
                         Some(prec) => {
-                            let link_directory = crate::location::construct_snapshot_directory(*prec)?;
+                            let link_directory = crate::location::construct_snapshot_directory_name(*prec)?;
                             crate::location::set_latest_symlink(&link_directory)?;
                         }
                         // This branch will be reached if the 'latest' symlink

@@ -24,14 +24,32 @@ pub fn get_latest_location() -> Result<PathBuf, Error> {
     Ok(get_host_location()?.join("latest"))
 }
 
-pub fn create_snapshot_name() -> Result<(u64, PathBuf), Error> {
+pub fn create_snapshot_dir(timestamp: u64) -> Result<PathBuf, Error> {
+    
+    let path = construct_snapshot_directory_name(timestamp)?;
+
+    if let Err(e) = std::fs::create_dir(&path) {
+        if e.kind() == std::io::ErrorKind::AlreadyExists {
+            return Err(Error::ExistingSnapshot(timestamp));
+        }
+        return Err(e.into());
+    }
+    Ok(path)
+}
+
+// Snapshots are initally created in a temporary
+// directory, and only moved to the final
+// directory once successful.
+pub fn create_pending_snapshot_name() -> Result<(u64, PathBuf), Error> {
     let timestamp = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)?
         .as_secs();
 
-    let location = get_host_location()?.join(timestamp.to_string());
+    let location = get_host_location()?
+        .join(".snapshot-pending")
+        .join(timestamp.to_string());
     
-    match std::fs::create_dir(&location) {
+    match std::fs::create_dir_all(&location) {
         Ok(_) => Ok((timestamp, location)),
 
         Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
@@ -42,13 +60,11 @@ pub fn create_snapshot_name() -> Result<(u64, PathBuf), Error> {
     }
 }
 
-pub fn construct_snapshot_directory(snapshot: u64) -> Result<PathBuf, Error> {
-    let host_location = get_host_location()?;
-    let directory = host_location.join(snapshot.to_string());
 
-    if !directory.is_dir() {
-        return Err(Error::InvalidSnapshot(snapshot));
-    }
+pub fn construct_snapshot_directory_name(timestamp: u64) -> Result<PathBuf, Error> {
+    let host_location = get_host_location()?;
+
+    let directory = host_location.join(timestamp.to_string());
 
     Ok(directory)
 }
@@ -91,6 +107,7 @@ pub fn set_latest_symlink(snapshot_dir: &Path) -> Result<(), Error> {
 
 pub fn remove_latest_symlink() -> Result<(), Error> {
     let link = crate::location::get_latest_location()?;
+    
     if link.exists() || std::fs::symlink_metadata(&link).is_ok() {
         std::fs::remove_file(&link)?;
     }

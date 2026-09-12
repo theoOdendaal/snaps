@@ -179,7 +179,7 @@ pub fn compute_par_snapshot_sizes() -> Result<(), Error> {
     snapshot_sizes.sort_unstable_by(|a, b| a.0.cmp(&b.0));
 
     println!(
-        "{:<12} | {:<12} | {:<10} | {:<10} | {:<10}",
+        "{:<12} | {:<20} | {:<10} | {:<10} | {:<10}",
         "Host", "Snapshot", "Unique", "Hard-link", "Total"
     );
     for (snap, uniq_size, hl_size) in snapshot_sizes {
@@ -190,7 +190,7 @@ pub fn compute_par_snapshot_sizes() -> Result<(), Error> {
         let snapshot = snap.file_name().and_then(|p| p.to_str()).unwrap();
 
         println!(
-            "{:<12} | {:<12} | {:<10} | {:<10} | {:<10}",
+            "{:<12} | {:<20} | {:<10} | {:<10} | {:<10}",
             parent,
             snapshot,
             format_size(uniq_size),

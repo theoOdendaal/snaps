@@ -2,22 +2,34 @@ use std::{
     fs::{DirEntry, Metadata}, os::unix::{fs::MetadataExt}, path::{Path, PathBuf}, sync::{Arc, mpsc}
 };
 
-use crate::filter::should_ignore;
-use crate::{error::Error, location::create_snapshot_name};
+use crate::{filter::should_ignore, location::create_pending_snapshot_name};
+use crate::error::Error;
 
 // FIXME: snapshot should be stored in a .tmp folder, and moved
 // atomically after it has been successfully created.
 
 pub fn handle_take(tag: Option<crate::meta::RetentionTag>) -> Result<(), Error> {
-    let (timestamp, snapshot_dir) = create_snapshot_name()?;
 
+    let (timestamp, snapshot_dir) = create_pending_snapshot_name()?;
+
+    println!("Hellow");
     let start = Path::new("/");
 
     let latest_location = crate::location::get_latest_location()?;
     //orchestrate_parallel_fs_walk(start, &snapshot_dir, &latest_location)?;
     linear_snapshot(start, &snapshot_dir, &latest_location)?;
+    
+    
+    // Once once the snapshot has been successfully taken
+    // in a temporary directory is it move to the 
+    // main snapshot directory.
+    
+    println!("Hellow world");
 
-    crate::location::set_latest_symlink(&snapshot_dir)?;
+    let final_snapshot_dir = crate::location::create_snapshot_dir(timestamp)?;
+    std::fs::rename(&snapshot_dir, &final_snapshot_dir)?;
+
+    crate::location::set_latest_symlink(&final_snapshot_dir)?;
 
     let tags = vec![tag.unwrap_or_default()];
     let metadata = crate::meta::SnapshotMetaData::new(timestamp, tags)?;

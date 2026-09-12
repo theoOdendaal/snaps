@@ -249,44 +249,6 @@ pub fn parse_metadata_as_hashmap(file_content: &str) -> Result<HashMap<u64, Vec<
     Ok(snapshots)
 }
 
-
-
-
-/*pub fn parse_metadata_as_ordered_vec(file_content: &str) -> Result<Vec<SnapshotMetaData>, Error> {
-    let mut snapshots = Vec::new();
-
-    for snapshot in file_content.split(";") {
-        let snapshot = snapshot.trim();
-
-        if snapshot.is_empty() {
-            continue;
-        }
-
-        let (head, tail) = match snapshot.rsplit_once(":") {
-            Some((head, tail)) => (head, Some(tail)),
-            None => (snapshot, None),
-        };
-
-        let timestamp = head.parse::<u64>()?;
-
-        let tags: Vec<RetentionTag> = match tail {
-            Some(tags) => tags
-                .split(",")
-                .map(RetentionTag::try_from)
-                .collect::<Result<_, Error>>()?,
-            None => vec![],
-        };
-
-        snapshots.push(SnapshotMetaData { timestamp, tags });
-    }
-
-    snapshots.sort_unstable_by_key(|a| std::cmp::Reverse(a.timestamp));
-
-    Ok(snapshots)
-}*/
-
-
-
 pub fn dump_snapshots() -> Result<(), Error> {
 
     let host_location = crate::location::get_host_location()?;
