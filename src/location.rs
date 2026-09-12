@@ -77,7 +77,7 @@ pub fn construct_snapshot_directory_name(timestamp: u64) -> Result<PathBuf, Erro
 }
 
 pub fn retrieve_snapshots_as_ordered_vec(host_location: &Path) -> Result<Vec<u64>, Error> {
-    let mut snapshots: Vec<u64> = Vec::with_capacity(30);
+    let mut snapshots: Vec<u64> = Vec::with_capacity(crate::meta::RetentionTag::EXPECTED_COUNT);
 
     for entry in std::fs::read_dir(host_location)? {
         let entry = entry?;

@@ -19,6 +19,16 @@ pub enum RetentionTag {
 }
 
 impl RetentionTag {
+
+    pub const MAX_UNTAGGED: usize = 10;
+    pub const MAX_HOURLY: usize = 5;
+    pub const MAX_DAILY: usize = 7;
+    pub const MAX_WEEKLY: usize = 3;
+    pub const MAX_ADHOC: usize = 10;
+
+    pub const EXPECTED_COUNT: usize = 35;
+
+
     pub const ALL: [RetentionTag;6] = [
         Self::Untagged,
         Self::Hourly,

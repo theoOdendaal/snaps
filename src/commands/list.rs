@@ -46,20 +46,18 @@ pub fn handle_list(
 
         // Check whether tags match.
         let mut is_selected = select_tags
-            .clone()
+            .as_ref()
             .is_some_and(|selected| selected.iter().any(|t| tags.is_some_and(|f| f.contains(t))));
 
-        if !is_selected && let Some(idx) = index_iter.peek() {
-            // FIXME: This logic requires that select_indexes be sorted
-            // ascending.
-                if *idx == i {
-                    index_iter.next();
-                    is_selected = true;
-                } else if *idx < i {
-                    index_iter.next();
-                }
-
+        // FIXME: This logic requires that select_indexes be sorted
+        // ascending.
+        while index_iter.peek().is_some_and(|idx| *idx <= i) {
+            if index_iter.next() == Some(i) {
+                is_selected = true;
+            }
         }
+
+
 
         let is_latest = latest_snapshot.is_some_and(|l| l == *snapshot);
 
