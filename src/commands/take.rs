@@ -5,9 +5,6 @@ use std::{
 use crate::{filter::should_ignore, location::create_pending_snapshot_name};
 use crate::error::Error;
 
-// FIXME: snapshot should be stored in a .tmp folder, and moved
-// atomically after it has been successfully created.
-
 pub fn handle_take(tag: Option<crate::meta::RetentionTag>) -> Result<(), Error> {
 
     let (timestamp, snapshot_dir) = create_pending_snapshot_name()?;

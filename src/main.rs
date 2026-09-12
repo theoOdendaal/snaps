@@ -108,7 +108,6 @@ fn parse_id(value: Option<&String>) -> Result<usize, Error> {
     }
 }
 
-// TODO: Add custom error.
 fn parse_argument(value: std::env::Args) -> Result<Command, Error> {
     let args: Vec<String> = value.collect();
 

@@ -1,3 +1,10 @@
+// FIXME: I need to drastically improve this module,
+// as my errors are way too generic. I basically have
+// to use println's to identify where the problem happended.
+// This isn't java, I should easiy be able to identify the
+// problem by looking at the error only.
+// I think I need to read up a bit more about error handling.
+
 #[derive(Debug)]
 pub enum Error {
     ExistingSnapshot(u64),
