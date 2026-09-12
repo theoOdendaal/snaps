@@ -53,7 +53,7 @@ pub fn construct_snapshot_directory(snapshot: u64) -> Result<PathBuf, Error> {
     Ok(directory)
 }
 
-pub fn retrieve_snapshots(host_location: &Path) -> Result<Vec<u64>, Error> {
+pub fn retrieve_snapshots_as_ordered_vec(host_location: &Path) -> Result<Vec<u64>, Error> {
     let mut snapshots: Vec<u64> = Vec::with_capacity(30);
 
     for entry in std::fs::read_dir(host_location)? {

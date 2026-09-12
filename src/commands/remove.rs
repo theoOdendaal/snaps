@@ -8,7 +8,7 @@ pub fn handle_remove(
     force: bool,
 ) -> Result<(), Error> {
     let host_location = crate::location::get_host_location()?;
-    let snapshots = crate::location::retrieve_snapshots(&host_location)?;
+    let snapshots = crate::location::retrieve_snapshots_as_ordered_vec(&host_location)?;
 
     let latest_location = crate::location::get_latest_location()?;
     let latest_location_target = std::fs::read_link(&latest_location)?;
@@ -19,7 +19,7 @@ pub fn handle_remove(
     let mut latest_preceding = None;
 
     let metadata_file_content = crate::meta::read_metadata_file_to_string()?;
-    let mut metadata = crate::meta::parse_metadata(&metadata_file_content)?;
+    let mut metadata = crate::meta::parse_metadata_as_ordered_vec(&metadata_file_content)?;
 
     let metadata_count = metadata.len();
 

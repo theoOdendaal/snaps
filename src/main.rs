@@ -49,19 +49,19 @@ fn print_help() {
   checkhealth           Sense check configurations
 
 \x1b[1mOptions (for take):\x1b[0m
-  --tag <TAG>         Assign specified tag to snapshot [u, h, d, w, a*]
+  --tag <TAG>         Assign specified tag to snapshot [u, h, d, w, m, a]
 
 \x1b[1mOptions (for list):\x1b[0m
   -s, --size            Display allocated size for each snapshot
   -i <ITEMS>            Select snapshot(s) using using indexes (e.x. 1 or 1,3,4 or 1-21)
-  -a <ACRONYMS>         Select snapshot(s) using tag acronyms [u, t, y, d, w]
+  -a <ACRONYMS>         Select snapshot(s) using tag acronyms [u, h, d, w, m, a]
   --remove              Remove selected snapshots, equivalent to using snap rm [OPTIONS]
   --force               Force action without explicit confirmation
                         \x1b[2m*(Note: Short flags can be combined, e.g., -sa, -si)\x1b[0m
 
 \x1b[1mOptions (for rm):\x1b[0m
   -i <ITEMS>            Select snapshot(s) using using indexes (e.x. 1 or 1,3,4 or 1-21)
-  -a <ACRONYMS>         Remove snapshot(s) selected using tag acronyms [u, t, y, d, w]
+  -a <ACRONYMS>         Remove snapshot(s) selected using tag acronyms [u, h, d, w, m, a]
   --force               Force action without explicit confirmation
 
 \x1b[1mOptions (for checkhealth):\x1b[0m

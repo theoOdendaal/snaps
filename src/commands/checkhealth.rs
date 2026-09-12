@@ -23,10 +23,10 @@ pub fn handle_checkhealth(dump: bool) -> Result<(), Error> {
     // Reconcile the metadata file with the snapshot
     // directories.
     let metadata_file_content = crate::meta::read_metadata_file_to_string()?;
-    let metadata = crate::meta::parse_metadata(&metadata_file_content)?;
+    let metadata = crate::meta::parse_metadata_as_ordered_vec(&metadata_file_content)?;
 
     let host_location = crate::location::get_host_location()?;
-    let snapshots = crate::location::retrieve_snapshots(&host_location)?;
+    let snapshots = crate::location::retrieve_snapshots_as_ordered_vec(&host_location)?;
     
     let mut m_iter = metadata.iter().map(|m| m.timestamp()).peekable();
     let mut s_iter = snapshots.iter().peekable();

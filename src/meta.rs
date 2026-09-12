@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs::OpenOptions;
 use std::io::Write;
 
@@ -111,7 +112,7 @@ impl std::fmt::Display for SnapshotMetaData {
     }
 }
 
-impl<'a> SnapshotMetaData {
+impl SnapshotMetaData {
     pub fn new(timestamp: u64, tags: Vec<RetentionTag>) -> Result<Self, Error> {
         
         if tags.is_empty() {
@@ -125,7 +126,7 @@ impl<'a> SnapshotMetaData {
         self.timestamp
     }
 
-    pub fn tags(&'a self) -> &'a [RetentionTag] {
+    pub fn tags(& self) -> &[RetentionTag] {
         &self.tags
     }
 
@@ -157,7 +158,101 @@ pub fn read_metadata_file_to_string() -> Result<String, Error> {
     Ok(std::fs::read_to_string(METADATA_FILE)?)
 }
 
-pub fn parse_metadata(file_content: &str) -> Result<Vec<SnapshotMetaData>, Error> {
+struct MetadataFileIter<'a> {
+    content: std::str::Split<'a, &'a str>,
+}
+
+// FIXME: Should I not make this TryFrom rather?
+impl<'a> From<&'a str> for MetadataFileIter<'a> {
+    fn from(value: &'a str) -> Self {
+        Self { content: value.split(";")}
+    }
+}
+
+impl<'a> Iterator for MetadataFileIter<'a> {
+    type Item = Result<SnapshotMetaData, Error>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+
+        if let Some(snapshot) = self.content.next() {
+            let trimmed = snapshot.trim();
+
+            if trimmed.is_empty() { return self.next(); }
+
+            let (head, tail) = match trimmed.rsplit_once(":") {
+                Some((head, tail)) => (head, Some(tail)),
+                None => (snapshot, None),
+            };
+            
+            let timestamp = match head.parse::<u64>() {
+                Ok(t) => t,
+                Err(e) => return Some(Err(e.into())),
+            };
+
+            let tags: Vec<RetentionTag> = match tail {
+                Some(tags) => {
+                    let parsed = tags
+                    .split(",")
+                    .map(RetentionTag::try_from)
+                    .collect::<Result<_, Error>>();
+
+                    match parsed {
+                        Ok(t) => t,
+                        Err(e) => return Some(Err(e)),
+                    }
+
+                },
+
+                None => vec![],
+            };
+
+            Some(Ok(SnapshotMetaData { timestamp, tags }))
+
+        } else {
+            None
+        }
+        
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.content.size_hint()
+    }
+}
+
+
+pub fn parse_metadata_as_ordered_vec(file_content: &str) -> Result<Vec<SnapshotMetaData>, Error> {
+    
+    let iter = MetadataFileIter::from(file_content);
+   
+    let mut snapshots  = iter.collect::<Result<Vec<SnapshotMetaData>, Error>>()?;
+
+    snapshots.sort_unstable_by_key(|a| std::cmp::Reverse(a.timestamp));
+
+    Ok(snapshots)
+
+}
+
+pub fn parse_metadata_as_hashmap<'a>(file_content: &'a str) -> Result<HashMap<u64, Vec<RetentionTag>>, Error> {
+    
+    let iter = MetadataFileIter::from(file_content);
+
+    let mut snapshots = HashMap::new();
+
+    for snapshot in iter {
+        let snapshot = snapshot?;
+        let timestamp = snapshot.timestamp();
+        let tags = snapshot.tags().to_vec();
+
+        snapshots.insert(timestamp, tags);
+    }
+
+    Ok(snapshots)
+}
+
+
+
+
+/*pub fn parse_metadata_as_ordered_vec(file_content: &str) -> Result<Vec<SnapshotMetaData>, Error> {
     let mut snapshots = Vec::new();
 
     for snapshot in file_content.split(";") {
@@ -188,17 +283,22 @@ pub fn parse_metadata(file_content: &str) -> Result<Vec<SnapshotMetaData>, Error
     snapshots.sort_unstable_by_key(|a| std::cmp::Reverse(a.timestamp));
 
     Ok(snapshots)
-}
+}*/
 
-// FIXME: Make another permutation that only correct delta's, i.e.
-// those entries that differ from the dir. As its a bit drastic to
-// completely overwrite everything.
+
+
 pub fn dump_snapshots() -> Result<(), Error> {
 
     let host_location = crate::location::get_host_location()?;
-    let snapshots = crate::location::retrieve_snapshots(&host_location)?;
+    let snapshots = crate::location::retrieve_snapshots_as_ordered_vec(&host_location)?;
 
-    let metadata  = snapshots.iter().map(|s| SnapshotMetaData::new(*s, vec![RetentionTag::Untagged])).collect::<Result<Vec<SnapshotMetaData>, Error>>()?;
+    let metadata_file_content = read_metadata_file_to_string()?;
+    let metadata = parse_metadata_as_hashmap(&metadata_file_content)?;
+
+    let metadata  = snapshots.iter().map(|s| {
+        let tags = metadata.get(s).unwrap_or(&vec![RetentionTag::Untagged]).to_vec();
+        SnapshotMetaData::new(*s, tags)
+    }).collect::<Result<Vec<SnapshotMetaData>, Error>>()?;
     
     crate::meta::SnapshotMetaData::overwrite_metadata_file(&metadata)?;
 

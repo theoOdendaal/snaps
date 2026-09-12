@@ -22,14 +22,14 @@ pub fn handle_list(
 
     let hostname = crate::location::get_hostname()?;
     let host_location = crate::location::get_host_location()?;
-    let snapshots = crate::location::retrieve_snapshots(&host_location)?;
+    let snapshots = crate::location::retrieve_snapshots_as_ordered_vec(&host_location)?;
 
     let latest_location = crate::location::get_latest_location()?;
     let latest_location_target = std::fs::read_link(&latest_location)?;
     let latest_snapshot = latest_location_target.file_name().and_then(|s| s.to_str()?.parse::<u64>().ok());
 
     let metadata_file_content = crate::meta::read_metadata_file_to_string()?;
-    let metadata = crate::meta::parse_metadata(&metadata_file_content)?;
+    let metadata = crate::meta::parse_metadata_as_hashmap(&metadata_file_content)?;
 
     let stdout = std::io::stdout();
     let mut writer = std::io::BufWriter::new(stdout.lock());
@@ -37,17 +37,17 @@ pub fn handle_list(
     let mut index_iter = select_indexes.into_iter().flatten().peekable();
 
     for (i, snapshot) in snapshots.iter().enumerate() {
-
-        let tags = metadata[i].tags();
+        
+        let tags = metadata.get(snapshot);
 
         let (year, month, day, hour, min, sec) = epoch_to_datetime(*snapshot);
 
-        let tag_string = crate::meta::RetentionTag::get_tags_mask(tags);
+        let tag_string = crate::meta::RetentionTag::get_tags_mask(tags.unwrap_or(&vec![]));
 
         // Check whether tags match.
         let mut is_selected = select_tags
             .clone()
-            .is_some_and(|selected| selected.iter().any(|t| tags.contains(t)));
+            .is_some_and(|selected| selected.iter().any(|t| tags.is_some_and(|f| f.contains(t))));
 
         if !is_selected && let Some(idx) = index_iter.peek() {
             // FIXME: This logic requires that select_indexes be sorted
