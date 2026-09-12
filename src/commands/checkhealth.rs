@@ -7,6 +7,9 @@ pub const ANSI_WARNING: &str = "\x1B[38;5;3m";
 pub const ANSI_INFO: &str = "\x1B[38;5;29m";
 pub const ANSI_RESET: &str = "\x1B[0m";
 
+// FIXME: Create functionality that will restore the 'latest'
+// symlink if broken.
+
 pub fn handle_checkhealth(dump: bool) -> Result<(), Error> {
     
     if dump {

@@ -232,7 +232,7 @@ pub fn parse_metadata_as_ordered_vec(file_content: &str) -> Result<Vec<SnapshotM
 
 }
 
-pub fn parse_metadata_as_hashmap<'a>(file_content: &'a str) -> Result<HashMap<u64, Vec<RetentionTag>>, Error> {
+pub fn parse_metadata_as_hashmap(file_content: &str) -> Result<HashMap<u64, Vec<RetentionTag>>, Error> {
     
     let iter = MetadataFileIter::from(file_content);
 
