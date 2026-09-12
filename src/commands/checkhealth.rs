@@ -11,10 +11,8 @@ pub const ANSI_RESET: &str = "\x1B[0m";
 // symlink if broken.
 
 pub fn handle_checkhealth(dump: bool) -> Result<(), Error> {
-    
     if dump {
         crate::meta::dump_snapshots()?;
-        return Ok(());
     }
 
     // Validate existence of 'latest' symlink.

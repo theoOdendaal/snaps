@@ -61,9 +61,9 @@ let mut stack = vec![path.to_path_buf()];
                     .strip_prefix(std::path::Component::RootDir)
                     .map_err(std::io::Error::other)?;
 
-                let target_dir = snapshot_dir.join(relative_path);
+                let target_path = snapshot_dir.join(relative_path);
 
-                std::fs::create_dir(target_dir)?;
+                std::fs::create_dir(target_path)?;
 
             } else if file_type.is_file() {
                 let relative_path = path
@@ -86,10 +86,12 @@ fn is_file_unchanged(source: &Metadata, target: &Metadata) -> bool {
     source.len() == target.len()
         && source.mtime() == target.mtime()
         && source.mtime_nsec() == target.mtime_nsec()
+        && source.ctime() == target.ctime()
+        && source.ctime_nsec() == target.ctime()
 
 }
 
-fn incremental_copy(source_dir: &DirEntry, target_dir: &Path, latest_dir: &Path) -> Result<(), Error> {
+fn incremental_copy(source_dir: &DirEntry, target_path: &Path, latest_dir: &Path) -> Result<(), Error> {
 
     let source_dir_path = source_dir.path();
 
@@ -106,28 +108,31 @@ fn incremental_copy(source_dir: &DirEntry, target_dir: &Path, latest_dir: &Path)
 
     let source_metadata = source_dir.metadata()?;
     if let Some(previous_metadata) = previous_snapshot_metadata && is_file_unchanged(&source_metadata, &previous_metadata) {
-        std::fs::hard_link(&previous_snapshot, target_dir)?;
+        std::fs::hard_link(&previous_snapshot, target_path)?;
 
     } else {
     
-        std::fs::copy(source_dir_path, target_dir)?;
+        std::fs::copy(source_dir_path, target_path)?;
 
         let permissions = source_metadata.permissions();
-        std::fs::set_permissions(target_dir, permissions)?;
+        std::fs::set_permissions(target_path, permissions)?;
+        
+        // Make sure to preserve owner and group details.
+        std::os::unix::fs::chown(target_path, Some(source_metadata.uid()), Some(source_metadata.gid()))?;
 
         if let (Ok(accessed), Ok(modified)) = (source_metadata.accessed(), source_metadata.modified()) {
             let times = std::fs::FileTimes::new()
                 .set_accessed(accessed)
                 .set_modified(modified);
 
-            let target_buffer = std::fs::File::open(target_dir)?;
+            let target_buffer = std::fs::File::open(target_path)?;
             target_buffer.set_times(times)?;
 
             //FIXME: std::fs::set_times is not yet stable.
             //For now, I'll have to open a buffer.
-            //std::fs::set_times(target_dir, times)?;
+            //std::fs::set_times(target_path, times)?;
 
-            println!("{:?} -> {:?}", source_dir, target_dir);
+            println!("{:?} -> {:?}", source_dir, target_path);
         }
     }
 
