@@ -86,9 +86,9 @@ fn is_file_unchanged(source: &Metadata, target: &Metadata) -> bool {
     source.len() == target.len()
         && source.mtime() == target.mtime()
         && source.mtime_nsec() == target.mtime_nsec()
-        && source.ctime() == target.ctime()
-        && source.ctime_nsec() == target.ctime()
-
+        && source.mode() == target.mode()
+        && source.uid() == target.uid()
+        && source.gid() == target.gid()
 }
 
 fn incremental_copy(source_dir: &DirEntry, target_path: &Path, latest_dir: &Path) -> Result<(), Error> {
@@ -114,11 +114,11 @@ fn incremental_copy(source_dir: &DirEntry, target_path: &Path, latest_dir: &Path
     
         std::fs::copy(source_dir_path, target_path)?;
 
-        let permissions = source_metadata.permissions();
-        std::fs::set_permissions(target_path, permissions)?;
-        
         // Make sure to preserve owner and group details.
         std::os::unix::fs::chown(target_path, Some(source_metadata.uid()), Some(source_metadata.gid()))?;
+
+        let permissions = source_metadata.permissions();
+        std::fs::set_permissions(target_path, permissions)?;
 
         if let (Ok(accessed), Ok(modified)) = (source_metadata.accessed(), source_metadata.modified()) {
             let times = std::fs::FileTimes::new()
