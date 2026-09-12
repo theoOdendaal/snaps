@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use crate::{error::Error, meta::RetentionTag, style::Colour};
+use crate::{error::{Error, WithContext}, meta::RetentionTag, style::Colour};
 
 const HOUR_IN_SECONDS: u64 = 60 * 60;
 const DAY_IN_SECONDS: u64 = HOUR_IN_SECONDS * 24;
@@ -25,7 +25,7 @@ pub fn handle_list(
     let snapshots = crate::location::retrieve_snapshots_as_ordered_vec(&host_location)?;
 
     let latest_location = crate::location::get_latest_location()?;
-    let latest_location_target = std::fs::read_link(&latest_location)?;
+    let latest_location_target = std::fs::read_link(&latest_location).with_context(&latest_location.to_string_lossy())?;
     let latest_snapshot = latest_location_target.file_name().and_then(|s| s.to_str()?.parse::<u64>().ok());
 
     let metadata_file_content = crate::meta::read_metadata_file_to_string()?;

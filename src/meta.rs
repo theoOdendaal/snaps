@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fs::OpenOptions;
 use std::io::Write;
 
-use crate::error::Error;
+use crate::error::{Error, WithContext};
 
 const METADATA_FILE: &str = "/var/snaps/snapshots/arch-theo/.snapshot-meta";
 
@@ -138,7 +138,8 @@ impl SnapshotMetaData {
         let mut file = OpenOptions::new()
             .create(true)
             .append(true)
-            .open(METADATA_FILE)?;
+            .open(METADATA_FILE)
+            .with_context(METADATA_FILE)?;
         writeln!(file, "{}", self)?;
 
         Ok(())
@@ -146,7 +147,9 @@ impl SnapshotMetaData {
 
     pub fn overwrite_metadata_file(snapshots: &[SnapshotMetaData]) -> Result<(), Error> {
 
-        let mut file = std::fs::File::create(METADATA_FILE)?;
+        let mut file = std::fs::File::create(METADATA_FILE)
+            .with_context(METADATA_FILE)?;
+
         for line in snapshots {
             writeln!(file, "{}", line)?;
         }
@@ -155,7 +158,8 @@ impl SnapshotMetaData {
 }
 
 pub fn read_metadata_file_to_string() -> Result<String, Error> {
-    Ok(std::fs::read_to_string(METADATA_FILE)?)
+    Ok(std::fs::read_to_string(METADATA_FILE)
+        .with_context(METADATA_FILE)?)
 }
 
 struct MetadataFileIter<'a> {

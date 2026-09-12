@@ -1,10 +1,13 @@
+
+use std::error::Error;
+
 use snaps::{
     commands::{
         checkhealth::handle_checkhealth, list::handle_list, remove::handle_remove,
         take::handle_take,
     },
-    error::Error,
 };
+
 
 // FIXME: Symbolic links should also be established in the snapshot.
 
@@ -33,7 +36,9 @@ enum Command {
         force: bool,
     },
     CheckHealth { dump: bool },
+
     Help,
+
     Version,
 }
 
@@ -74,13 +79,13 @@ fn print_help() {
     print!("{}", help_text);
 }
 
-fn parse_acronyms(values: Option<&String>) -> Result<Vec<snaps::meta::RetentionTag>, Error> {
+fn parse_acronyms(values: Option<&String>) -> Result<Vec<snaps::meta::RetentionTag>, snaps::error::Error> {
     values
         .map(|acrs| acrs.split(',').map(|a| a.try_into()).collect())
         .unwrap_or_else(|| Ok(Vec::new()))
 }
 
-fn parse_items(values: Option<&String>) -> Result<Vec<usize>, Error> {
+fn parse_items(values: Option<&String>) -> Result<Vec<usize>, snaps::error::Error> {
     let Some(its) = values else {
         return Ok(Vec::new());
     };
@@ -97,18 +102,18 @@ fn parse_items(values: Option<&String>) -> Result<Vec<usize>, Error> {
                 Ok(vec![a.parse::<usize>()?])
             }
         })
-        .collect::<Result<Vec<Vec<usize>>, Error>>()
+        .collect::<Result<Vec<Vec<usize>>, snaps::error::Error>>()
         .map(|nested| nested.into_iter().flatten().collect())
 }
 
-fn parse_id(value: Option<&String>) -> Result<usize, Error> {
+fn parse_id(value: Option<&String>) -> Result<usize, snaps::error::Error> {
     match value {
         Some(value) => Ok(value.parse()?),
-        None => Err(Error::FromStrError("Missing id value".into())),
+        None => Err(snaps::error::Error::FromStrError("Missing id value".into())),
     }
 }
 
-fn parse_argument(value: std::env::Args) -> Result<Command, Error> {
+fn parse_argument(value: std::env::Args) -> Result<Command, snaps::error::Error> {
     let args: Vec<String> = value.collect();
 
     let mut command: Option<&String> = None;
@@ -189,7 +194,7 @@ fn parse_argument(value: std::env::Args) -> Result<Command, Error> {
     }
 }
 
-fn main() -> Result<(), Error> {
+fn main() -> Result<(), snaps::error::Error> {
     
     let start = std::time::Instant::now();
 

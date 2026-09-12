@@ -3,19 +3,23 @@ use std::{
     time::SystemTime,
 };
 
-use crate::error::Error;
+use crate::error::{Error, WithContext};
 
 const BASE_SNAPSHOT_DIR: &str = concat!("/var/", env!("CARGO_PKG_NAME"), "/snapshots");
 
 const HOSTNAME_FILE: &str = "/proc/sys/kernel/hostname";
 
 pub fn get_hostname() -> Result<String, Error> {
-    let hostname = std::fs::read_to_string(HOSTNAME_FILE)?;
+    let hostname = std::fs::read_to_string(HOSTNAME_FILE)
+        .with_context(HOSTNAME_FILE)?;
+
     Ok(hostname.trim().to_string())
 }
 
 pub fn get_host_location() -> Result<PathBuf, Error> {
-    let hostname = std::fs::read_to_string(HOSTNAME_FILE)?;
+    let hostname = std::fs::read_to_string(HOSTNAME_FILE)
+        .with_context(HOSTNAME_FILE)?;
+
     let trimmed_hostname = hostname.trim();
     Ok(Path::new(BASE_SNAPSHOT_DIR).join(trimmed_hostname))
 }
@@ -95,12 +99,18 @@ pub fn retrieve_snapshots_as_ordered_vec(host_location: &Path) -> Result<Vec<u64
 pub fn set_latest_symlink(snapshot_dir: &Path) -> Result<(), Error> {
     let link = crate::location::get_latest_location()?;
 
-    if link.exists() || std::fs::symlink_metadata(&link).is_ok() {
-        std::fs::remove_file(&link)?;
-    }
+    let parent = link.parent().ok_or_else(|| Error::InvalidPath { path: link.clone() })?;
 
+    let temp_link = parent.join(".latest-tmp");
+    
+    // In order to not causing racing condition problems.
+    // The latest symlink is created atomically
+    // using rename.
     #[cfg(unix)]
-    std::os::unix::fs::symlink(snapshot_dir, &link)?;
+    {
+        std::os::unix::fs::symlink(&snapshot_dir, &temp_link)?;
+        std::fs::rename(&temp_link, &link)?;
+    }
 
     Ok(())
 }
