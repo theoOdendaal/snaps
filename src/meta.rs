@@ -158,8 +158,8 @@ impl SnapshotMetaData {
 }
 
 pub fn read_metadata_file_to_string() -> Result<String, Error> {
-    Ok(std::fs::read_to_string(METADATA_FILE)
-        .with_context(METADATA_FILE)?)
+    std::fs::read_to_string(METADATA_FILE)
+        .with_context(METADATA_FILE)
 }
 
 struct MetadataFileIter<'a> {

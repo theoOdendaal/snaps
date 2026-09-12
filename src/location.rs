@@ -29,7 +29,6 @@ pub fn get_latest_location() -> Result<PathBuf, Error> {
 }
 
 pub fn create_snapshot_dir(timestamp: u64) -> Result<PathBuf, Error> {
-    
     let path = construct_snapshot_directory_name(timestamp)?;
 
     if let Err(e) = std::fs::create_dir(&path) {
@@ -49,11 +48,15 @@ pub fn create_pending_snapshot_name() -> Result<(u64, PathBuf), Error> {
         .duration_since(SystemTime::UNIX_EPOCH)?
         .as_secs();
 
-    let location = get_host_location()?
-        .join(".pending")
+    let pending_location = get_host_location()?
+        .join(".pending");
+    
+    std::fs::create_dir_all(&pending_location)?;
+
+    let location = pending_location
         .join(timestamp.to_string());
     
-    match std::fs::create_dir_all(&location) {
+    match std::fs::create_dir(&location) {
         Ok(_) => Ok((timestamp, location)),
 
         Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
@@ -97,7 +100,7 @@ pub fn retrieve_snapshots_as_ordered_vec(host_location: &Path) -> Result<Vec<u64
 // Update 'latest' symlink to reference a new snapshot,
 // after removing the existing symlink.
 pub fn set_latest_symlink(snapshot_dir: &Path) -> Result<(), Error> {
-    let link = crate::location::get_latest_location()?;
+    let link = get_latest_location()?;
 
     let parent = link.parent().ok_or_else(|| Error::InvalidPath { path: link.clone() })?;
 
@@ -108,7 +111,7 @@ pub fn set_latest_symlink(snapshot_dir: &Path) -> Result<(), Error> {
     // using rename.
     #[cfg(unix)]
     {
-        std::os::unix::fs::symlink(&snapshot_dir, &temp_link)?;
+        std::os::unix::fs::symlink(snapshot_dir, &temp_link)?;
         std::fs::rename(&temp_link, &link)?;
     }
 
@@ -116,7 +119,7 @@ pub fn set_latest_symlink(snapshot_dir: &Path) -> Result<(), Error> {
 }
 
 pub fn remove_latest_symlink() -> Result<(), Error> {
-    let link = crate::location::get_latest_location()?;
+    let link = get_latest_location()?;
     
     if link.exists() || std::fs::symlink_metadata(&link).is_ok() {
         std::fs::remove_file(&link)?;
