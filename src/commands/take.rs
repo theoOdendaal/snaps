@@ -12,7 +12,6 @@ pub fn handle_take(tag: Option<crate::meta::RetentionTag>) -> Result<(), Error> 
 
     let (timestamp, snapshot_dir) = create_pending_snapshot_name()?;
 
-    println!("Hellow");
     let start = Path::new("/");
 
     let latest_location = crate::location::get_latest_location()?;
@@ -23,8 +22,6 @@ pub fn handle_take(tag: Option<crate::meta::RetentionTag>) -> Result<(), Error> 
     // Once once the snapshot has been successfully taken
     // in a temporary directory is it move to the 
     // main snapshot directory.
-    
-    println!("Hellow world");
 
     let final_snapshot_dir = crate::location::create_snapshot_dir(timestamp)?;
     std::fs::rename(&snapshot_dir, &final_snapshot_dir)?;

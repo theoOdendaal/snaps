@@ -46,7 +46,7 @@ pub fn create_pending_snapshot_name() -> Result<(u64, PathBuf), Error> {
         .as_secs();
 
     let location = get_host_location()?
-        .join(".snapshot-pending")
+        .join(".pending")
         .join(timestamp.to_string());
     
     match std::fs::create_dir_all(&location) {
