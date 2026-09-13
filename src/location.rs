@@ -20,7 +20,7 @@ pub fn get_host_dir_information() -> Result<(String, PathBuf), Error> {
     Ok((hostname, path))
 }
 
-pub fn get_latest_path(host_path: &PathBuf) -> PathBuf {
+pub fn get_latest_path(host_path: &Path) -> PathBuf {
     host_path.join("latest")
 }
 
@@ -115,7 +115,7 @@ pub fn set_latest_symlink(snapshot_dir: &Path) -> Result<(), Error> {
 
 pub fn remove_latest_symlink() -> Result<(), Error> {
     let (_, host_path) = get_host_dir_information()?;
-    let link = get_latest_path(&host_path);
+    let link = get_latest_path(host_path.as_path());
     
     if link.exists() || std::fs::symlink_metadata(&link).is_ok() {
         std::fs::remove_file(&link)?;
