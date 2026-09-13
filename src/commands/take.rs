@@ -7,7 +7,12 @@ use crate::error::Error;
 
 pub fn handle_take(tag: Option<crate::meta::RetentionTag>) -> Result<(), Error> {
 
+    println!("[1/3] Creating pending directory...");
     let (timestamp, snapshot_dir) = create_pending_snapshot_name()?;
+    println!("\tPending directory created: {}", &snapshot_dir.display());
+     
+
+
 
     let start = Path::new("/");
 
@@ -19,7 +24,6 @@ pub fn handle_take(tag: Option<crate::meta::RetentionTag>) -> Result<(), Error> 
     // Once once the snapshot has been successfully taken
     // in a temporary directory is it move to the 
     // main snapshot directory.
-
     let final_snapshot_dir = crate::location::create_snapshot_dir(timestamp)?;
     std::fs::rename(&snapshot_dir, &final_snapshot_dir)?;
 
@@ -33,7 +37,7 @@ pub fn handle_take(tag: Option<crate::meta::RetentionTag>) -> Result<(), Error> 
 }
 
 fn linear_snapshot(path: &Path, snapshot_dir: &Path, latest_dir: &Path) -> Result<(), Error> {
-let mut stack = vec![path.to_path_buf()];
+    let mut stack = vec![path.to_path_buf()];
 
     while let Some(path) = stack.pop() {
         let entries = match std::fs::read_dir(&path) {
@@ -71,6 +75,7 @@ let mut stack = vec![path.to_path_buf()];
                     .map_err(std::io::Error::other)?;
 
                 let target_path = snapshot_dir.join(relative_path);
+
                 incremental_copy(&entry, &target_path, latest_dir)?
             }
         }
@@ -132,7 +137,7 @@ fn incremental_copy(source_dir: &DirEntry, target_path: &Path, latest_dir: &Path
             //For now, I'll have to open a buffer.
             //std::fs::set_times(target_path, times)?;
 
-            println!("{:?} -> {:?}", source_dir, target_path);
+            //println!("{:?} -> {:?}", source_dir, target_path);
         }
     }
 
