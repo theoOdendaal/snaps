@@ -2,10 +2,6 @@
 // I feel like there are too many unnecessary
 // file being included.
 
-// TODO: How should .git files be treated?
-// Do I need to even backup anything else
-// other than the .git file?
-
 const IGNORED_ROOT_DIRECTORIES: &[&str] = &[
     "bin",
     //"boot",
@@ -31,11 +27,8 @@ const IGNORED_ROOT_DIRECTORIES: &[&str] = &[
 
 const IGNORED_COMPONENTS: &[&str] = &["target", ".cache", ".cargo"];
 
-const IGNORED_COMPONENT_GROUPS: &[&[&str]] = &[
+const IGNORED_ROOT_ANCHORED_COMPONENTS: &[&[&str]] = &[
     &["var", env!("CARGO_PKG_NAME")],
-    &[".local", "share", "nvim"],
-    &[".local", "state", "nvim"],
-    &[".config", "mozilla", "firefox"],
     &["var", "lib", "pacman"],
     &["var", "tmp"],
     &["var", "cache"],
@@ -46,6 +39,14 @@ const IGNORED_COMPONENT_GROUPS: &[&[&str]] = &[
     &["home", "theo", ".MathWorks"],
     &["home", "theo", ".rustup"],
 ];
+
+const TAIL_ANCHORED_COMPONENTS: &[&[&str]] = &[
+    &[".local", "share", "nvim"],
+    &[".local", "state", "nvim"],
+    &[".config", "mozilla", "firefox"],
+    &[".config", "chromium"],
+];
+
 
 fn root_level_exclusion(path: &std::path::Path) -> bool {
     if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
@@ -58,7 +59,6 @@ fn root_level_exclusion(path: &std::path::Path) -> bool {
 // Why do I recheck the prefixes every time?
 // At most it should be checked at the start?
 pub fn should_ignore(path: &std::path::Path) -> bool {
-    assert!(path.is_dir());
 
     if let Some(parent) = path.parent()
         && parent == "/"
@@ -85,8 +85,14 @@ pub fn should_ignore(path: &std::path::Path) -> bool {
         })
         .collect();
 
-    for rule in IGNORED_COMPONENT_GROUPS {
-        if comps.windows(rule.len()).any(|window| window == *rule) {
+    for rule in IGNORED_ROOT_ANCHORED_COMPONENTS {
+        if comps.starts_with(rule) {
+            return true;
+        }
+    }
+
+    for rule in TAIL_ANCHORED_COMPONENTS {
+        if comps.ends_with(rule) {
             return true;
         }
     }

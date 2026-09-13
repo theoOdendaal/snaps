@@ -1,5 +1,5 @@
 
-use std::error::Error;
+use std::{error::Error, os::unix::fs::MetadataExt, path::Component::RootDir};
 
 use snaps::{
     commands::{
