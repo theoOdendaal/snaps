@@ -1,6 +1,4 @@
 
-use std::{error::Error, os::unix::fs::MetadataExt, path::Component::RootDir};
-
 use snaps::{
     commands::{
         checkhealth::handle_checkhealth, list::handle_list, remove::handle_remove,
@@ -196,6 +194,8 @@ fn parse_argument(value: std::env::Args) -> Result<Command, snaps::error::Error>
 
 fn main() -> Result<(), snaps::error::Error> {
 
+    let start = std::time::Instant::now();
+
     let command = parse_argument(std::env::args())?;
 
     match command {
@@ -231,6 +231,9 @@ fn main() -> Result<(), snaps::error::Error> {
             handle_checkhealth(dump)?;
         }
     }
+
+    let duration = start.elapsed();
+    println!("Executed in: {:?}", duration);
 
     Ok(())
 }

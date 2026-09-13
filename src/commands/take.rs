@@ -14,7 +14,8 @@ pub fn handle_take(tag: Option<crate::meta::RetentionTag>) -> Result<(), Error> 
 
     println!("\n[2/3] Starting incremental snapshot...");
     let start = Path::new("/");
-    let latest_location = crate::location::get_latest_location()?;
+    let (_, host_path) = crate::location::get_host_dir_information()?;
+    let latest_location = crate::location::get_latest_path(&host_path);
     //orchestrate_parallel_fs_walk(start, &snapshot_dir, &latest_location)?;
     linear_snapshot(start, &snapshot_dir, &latest_location)?;
     
@@ -36,7 +37,6 @@ pub fn handle_take(tag: Option<crate::meta::RetentionTag>) -> Result<(), Error> 
 
     Ok(())
 }
-
 
 fn linear_snapshot(path: &Path, snapshot_dir: &Path, latest_dir: &Path) -> Result<(), Error> {
     let mut stack = vec![path.to_path_buf()];

@@ -9,23 +9,19 @@ const BASE_SNAPSHOT_DIR: &str = concat!("/var/", env!("CARGO_PKG_NAME"), "/snaps
 
 const HOSTNAME_FILE: &str = "/proc/sys/kernel/hostname";
 
-pub fn get_hostname() -> Result<String, Error> {
+pub fn get_host_dir_information() -> Result<(String, PathBuf), Error> {
     let hostname = std::fs::read_to_string(HOSTNAME_FILE)
-        .with_context(HOSTNAME_FILE)?;
-
-    Ok(hostname.trim().to_string())
-}
-
-pub fn get_host_location() -> Result<PathBuf, Error> {
-    let hostname = std::fs::read_to_string(HOSTNAME_FILE)
-        .with_context(HOSTNAME_FILE)?;
+        .with_context(HOSTNAME_FILE)?
+        .trim()
+        .to_string();
 
     let trimmed_hostname = hostname.trim();
-    Ok(Path::new(BASE_SNAPSHOT_DIR).join(trimmed_hostname))
+    let path = Path::new(BASE_SNAPSHOT_DIR).join(trimmed_hostname);
+    Ok((hostname, path))
 }
 
-pub fn get_latest_location() -> Result<PathBuf, Error> {
-    Ok(get_host_location()?.join("latest"))
+pub fn get_latest_path(host_path: &PathBuf) -> PathBuf {
+    host_path.join("latest")
 }
 
 pub fn create_snapshot_dir(timestamp: u64) -> Result<PathBuf, Error> {
@@ -48,8 +44,8 @@ pub fn create_pending_snapshot_name() -> Result<(u64, PathBuf), Error> {
         .duration_since(SystemTime::UNIX_EPOCH)?
         .as_secs();
 
-    let pending_location = get_host_location()?
-        .join(".pending");
+    let (_, host_location) = get_host_dir_information()?;
+    let pending_location = host_location.join(".pending");
     
     std::fs::create_dir_all(&pending_location)?;
 
@@ -69,10 +65,8 @@ pub fn create_pending_snapshot_name() -> Result<(u64, PathBuf), Error> {
 
 
 pub fn construct_snapshot_directory_name(timestamp: u64) -> Result<PathBuf, Error> {
-    let host_location = get_host_location()?;
-
+    let (_, host_location) = get_host_dir_information()?;
     let directory = host_location.join(timestamp.to_string());
-
     Ok(directory)
 }
 
@@ -100,7 +94,8 @@ pub fn retrieve_snapshots_as_ordered_vec(host_location: &Path) -> Result<Vec<u64
 // Update 'latest' symlink to reference a new snapshot,
 // after removing the existing symlink.
 pub fn set_latest_symlink(snapshot_dir: &Path) -> Result<(), Error> {
-    let link = get_latest_location()?;
+    let (_, host_path) = get_host_dir_information()?;
+    let link = get_latest_path(&host_path);
 
     let parent = link.parent().ok_or_else(|| Error::InvalidPath { path: link.clone() })?;
 
@@ -119,7 +114,8 @@ pub fn set_latest_symlink(snapshot_dir: &Path) -> Result<(), Error> {
 }
 
 pub fn remove_latest_symlink() -> Result<(), Error> {
-    let link = get_latest_location()?;
+    let (_, host_path) = get_host_dir_information()?;
+    let link = get_latest_path(&host_path);
     
     if link.exists() || std::fs::symlink_metadata(&link).is_ok() {
         std::fs::remove_file(&link)?;

@@ -264,7 +264,7 @@ pub fn parse_metadata_as_hashmap(file_content: &str) -> Result<HashMap<u64, Vec<
 
 pub fn dump_snapshots() -> Result<(), Error> {
 
-    let host_location = crate::location::get_host_location()?;
+    let (_, host_location) = crate::location::get_host_dir_information()?;
     let snapshots = crate::location::retrieve_snapshots_as_ordered_vec(&host_location)?;
 
     // Whether the file exists or not should not

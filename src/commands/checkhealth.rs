@@ -15,8 +15,10 @@ pub fn handle_checkhealth(dump: bool) -> Result<(), Error> {
         crate::meta::dump_snapshots()?;
     }
 
+    let (_, host_path) = crate::location::get_host_dir_information()?;
+
     // Validate existence of 'latest' symlink.
-    let latest_location = crate::location::get_latest_location()?;
+    let latest_location = crate::location::get_latest_path(&host_path);
     if !latest_location.exists() || std::fs::symlink_metadata(latest_location).is_err() {
         print_broken_symlink();
     }
@@ -26,8 +28,7 @@ pub fn handle_checkhealth(dump: bool) -> Result<(), Error> {
     let metadata_file_content = crate::meta::read_metadata_file_to_string()?;
     let metadata = crate::meta::parse_metadata_as_ordered_vec(&metadata_file_content)?;
 
-    let host_location = crate::location::get_host_location()?;
-    let snapshots = crate::location::retrieve_snapshots_as_ordered_vec(&host_location)?;
+    let snapshots = crate::location::retrieve_snapshots_as_ordered_vec(&host_path)?;
     
     let mut m_iter = metadata.iter().map(|m| m.timestamp()).peekable();
     let mut s_iter = snapshots.iter().peekable();

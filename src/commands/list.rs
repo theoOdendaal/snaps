@@ -20,11 +20,10 @@ pub fn handle_list(
         return Ok(());
     }
 
-    let hostname = crate::location::get_hostname()?;
-    let host_location = crate::location::get_host_location()?;
+    let (hostname, host_location) = crate::location::get_host_dir_information()?;
     let snapshots = crate::location::retrieve_snapshots_as_ordered_vec(&host_location)?;
 
-    let latest_location = crate::location::get_latest_location()?;
+    let latest_location = crate::location::get_latest_path(&host_location);
     let latest_location_target = std::fs::read_link(&latest_location).with_context(&latest_location.to_string_lossy())?;
     let latest_snapshot = latest_location_target.file_name().and_then(|s| s.to_str()?.parse::<u64>().ok());
 
@@ -57,10 +56,8 @@ pub fn handle_list(
             }
         }
 
-
-
         let is_latest = latest_snapshot.is_some_and(|l| l == *snapshot);
-
+        
         let latest_prefix = if is_latest { "[L]" } else { "" };
 
         if is_selected {
@@ -85,6 +82,7 @@ pub fn handle_list(
             "{hostname:<10} {tag_string:<6} {i:<3} {year:04}-{month:02}-{day:02} {hour:02}:{min:02}:{sec:02} {:<5} {snapshot} {latest_prefix} {reset_code}",
             snapshot / WEEK_IN_SECONDS,
         )?;
+
     }
     writer.flush()?;
 
@@ -92,6 +90,7 @@ pub fn handle_list(
 }
 
 // https://howardhinnant.github.io/date_algorithms.html
+#[inline]
 pub fn epoch_to_datetime(secs: u64) -> (i32, u32, u32, u32, u32, u32) {
     let (days, time_secs) = (secs / DAY_IN_SECONDS, secs % DAY_IN_SECONDS);
 

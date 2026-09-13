@@ -7,10 +7,10 @@ pub fn handle_remove(
     select_tags: Option<Vec<crate::meta::RetentionTag>>,
     force: bool,
 ) -> Result<(), Error> {
-    let host_location = crate::location::get_host_location()?;
+    let (_, host_location) = crate::location::get_host_dir_information()?;
     let snapshots = crate::location::retrieve_snapshots_as_ordered_vec(&host_location)?;
 
-    let latest_location = crate::location::get_latest_location()?;
+    let latest_location = crate::location::get_latest_path(&host_location);
     let latest_location_target = std::fs::read_link(&latest_location)?;
     let latest_snapshot = latest_location_target.file_name().and_then(|s| s.to_str()?.parse::<u64>().ok());
     
