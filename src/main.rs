@@ -195,8 +195,6 @@ fn parse_argument(value: std::env::Args) -> Result<Command, snaps::error::Error>
 }
 
 fn main() -> Result<(), snaps::error::Error> {
-    
-    let start = std::time::Instant::now();
 
     let command = parse_argument(std::env::args())?;
 
@@ -233,10 +231,6 @@ fn main() -> Result<(), snaps::error::Error> {
             handle_checkhealth(dump)?;
         }
     }
-    
-    let duration = start.elapsed();
-    println!("Execution time: {:?}", duration);
-
 
     Ok(())
 }

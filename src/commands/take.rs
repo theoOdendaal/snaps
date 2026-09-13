@@ -2,33 +2,34 @@ use std::{
     fs::{DirEntry, Metadata}, os::unix::{fs::MetadataExt}, path::{Path, PathBuf}, sync::{Arc, mpsc}
 };
 
+use std::time::Instant;
+
 use crate::{filter::should_ignore, location::create_pending_snapshot_name};
 use crate::error::Error;
 
 pub fn handle_take(tag: Option<crate::meta::RetentionTag>) -> Result<(), Error> {
-
     println!("[1/3] Creating pending directory...");
     let (timestamp, snapshot_dir) = create_pending_snapshot_name()?;
     println!("\tPending directory created: {}", &snapshot_dir.display());
-     
 
-
-
+    println!("\n[2/3] Starting incremental snapshot...");
     let start = Path::new("/");
-
     let latest_location = crate::location::get_latest_location()?;
     //orchestrate_parallel_fs_walk(start, &snapshot_dir, &latest_location)?;
     linear_snapshot(start, &snapshot_dir, &latest_location)?;
     
-    
     // Once once the snapshot has been successfully taken
     // in a temporary directory is it move to the 
     // main snapshot directory.
+    println!("\n[3/3] Finalizing snapshot creation...");
+    println!("\tMoving snapshot from pending");
     let final_snapshot_dir = crate::location::create_snapshot_dir(timestamp)?;
     std::fs::rename(&snapshot_dir, &final_snapshot_dir)?;
-
+    
+    println!("\tUpdating latest symlink");
     crate::location::set_latest_symlink(&final_snapshot_dir)?;
 
+    println!("\tCreating snapshot metadata");
     let tags = vec![tag.unwrap_or_default()];
     let metadata = crate::meta::SnapshotMetaData::new(timestamp, tags)?;
     metadata.append_to_metadata_file()?;
@@ -36,8 +37,11 @@ pub fn handle_take(tag: Option<crate::meta::RetentionTag>) -> Result<(), Error> 
     Ok(())
 }
 
+
 fn linear_snapshot(path: &Path, snapshot_dir: &Path, latest_dir: &Path) -> Result<(), Error> {
     let mut stack = vec![path.to_path_buf()];
+
+    let mut progress_tracker = IncrementalCopyTracker::new();
 
     while let Some(path) = stack.pop() {
         let entries = match std::fs::read_dir(&path) {
@@ -76,10 +80,26 @@ fn linear_snapshot(path: &Path, snapshot_dir: &Path, latest_dir: &Path) -> Resul
 
                 let target_path = snapshot_dir.join(relative_path);
 
-                incremental_copy(&entry, &target_path, latest_dir)?
+                let copy_status = incremental_copy(&entry, &target_path, latest_dir)?;
+
+                match copy_status {
+                    IncrementalCopyStatus::Copied { allocated_bytes, apparent_bytes, delta_bytes } => {
+                        progress_tracker.increase_allocated_bytes(allocated_bytes);
+                        progress_tracker.increase_apparent_bytes(apparent_bytes);
+                        progress_tracker.increase_delta_bytes(delta_bytes);
+                    }
+                    
+                    IncrementalCopyStatus::Hardlinked { allocated_bytes, apparent_bytes } => {
+                        progress_tracker.increase_allocated_bytes(allocated_bytes);
+                        progress_tracker.increase_apparent_bytes(apparent_bytes);
+                    }
+                }
+
             }
         }
+
     }
+    println!("{}", progress_tracker);
 
     Ok(())
 }
@@ -96,8 +116,55 @@ fn is_file_unchanged(source: &Metadata, target: &Metadata) -> bool {
         && source.gid() == target.gid()
 }
 
-fn incremental_copy(source_dir: &DirEntry, target_path: &Path, latest_dir: &Path) -> Result<(), Error> {
+pub struct IncrementalCopyTracker {
+    start_time: Instant,
+    allocated_bytes: u64,
+    apparent_bytes: u64,
+    delta_bytes: u64,
+}
 
+impl std::fmt::Display for IncrementalCopyTracker {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let duration = self.start_time.elapsed().as_secs_f64();
+        let allocated_mb = self.allocated_bytes / (1024 * 1024) ;
+        let apparent_mb = self.apparent_bytes / (1024 * 1024);
+        let delta_mb = self.delta_bytes / (1024 * 1024);
+        write!(f, "\tElapsed: {:.2}s\n\tAllocated size: {:>.2} MiB\n\tApparent size: {:>.2} Mib\n\tDelta size: {:>.2} MiB", duration, allocated_mb, apparent_mb, delta_mb)
+    }
+}
+
+impl IncrementalCopyTracker {
+
+    fn new() -> Self {
+        let start_time = Instant::now();
+        Self { start_time, allocated_bytes: 0, apparent_bytes: 0,  delta_bytes: 0 }
+    }
+
+    fn increase_apparent_bytes(&mut self, bytes: u64) {
+        self.apparent_bytes+= bytes;
+    }
+
+    fn increase_allocated_bytes(&mut self, bytes: u64) {
+        self.allocated_bytes += bytes;
+    }
+
+    fn increase_delta_bytes(&mut self, bytes: u64) {
+        self.delta_bytes += bytes;
+    }
+
+}
+
+enum IncrementalCopyStatus {
+    // Adding delta bytes in order to allow
+    // future copy logic to copy individual blocks
+    // of data.
+    Copied { allocated_bytes: u64, apparent_bytes: u64, delta_bytes: u64 },
+
+    Hardlinked { allocated_bytes: u64, apparent_bytes: u64 },
+
+}
+
+fn incremental_copy(source_dir: &DirEntry, target_path: &Path, latest_dir: &Path) -> Result<IncrementalCopyStatus, Error> {
     let source_dir_path = source_dir.path();
 
     let relative_source_dir = source_dir_path 
@@ -113,7 +180,10 @@ fn incremental_copy(source_dir: &DirEntry, target_path: &Path, latest_dir: &Path
 
     let source_metadata = source_dir.metadata()?;
     if let Some(previous_metadata) = previous_snapshot_metadata && is_file_unchanged(&source_metadata, &previous_metadata) {
+
         std::fs::hard_link(&previous_snapshot, target_path)?;
+
+        Ok(IncrementalCopyStatus::Hardlinked { allocated_bytes: previous_metadata.blocks() * 512, apparent_bytes: previous_metadata.len() })
 
     } else {
     
@@ -139,10 +209,15 @@ fn incremental_copy(source_dir: &DirEntry, target_path: &Path, latest_dir: &Path
 
             //println!("{:?} -> {:?}", source_dir, target_path);
         }
+        
+        let size = source_metadata.blocks() * 512;
+        Ok(IncrementalCopyStatus::Copied { allocated_bytes: size, apparent_bytes: source_metadata.len(), delta_bytes: size })
     }
-
-    Ok(())
 }
+
+
+
+
 
 
 
