@@ -3,6 +3,8 @@ use std::{
     time::SystemTime,
 };
 
+// FIXME: See in how many situations I can return Path rather than PathBuf.
+
 use crate::error::{Error, WithContext};
 
 const BASE_SNAPSHOT_DIR: &str = concat!("/var/", env!("CARGO_PKG_NAME"), "/snapshots");
