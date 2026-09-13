@@ -15,12 +15,15 @@ pub fn handle_checkhealth(dump: bool) -> Result<(), Error> {
         crate::meta::dump_snapshots()?;
     }
 
+    let stdout = std::io::stdout();
+    let mut handle = std::io::BufWriter::new(stdout.lock());
+
     let (_, host_path) = crate::location::get_host_dir_information()?;
 
     // Validate existence of 'latest' symlink.
     let latest_location = crate::location::get_latest_path(&host_path);
     if !latest_location.exists() || std::fs::symlink_metadata(latest_location).is_err() {
-        print_broken_symlink();
+        print_broken_symlink(&mut handle);
     }
 
     // Reconcile the metadata file with the snapshot
@@ -33,6 +36,7 @@ pub fn handle_checkhealth(dump: bool) -> Result<(), Error> {
     let mut m_iter = metadata.iter().map(|m| m.timestamp()).peekable();
     let mut s_iter = snapshots.iter().peekable();
 
+
     // Both metadata and snapshots are ordered from
     // greatest to smallest.
     while m_iter.peek().is_some() || s_iter.peek().is_some() {
@@ -41,26 +45,26 @@ pub fn handle_checkhealth(dump: bool) -> Result<(), Error> {
             (Some(a), Some(b)) => {
                 
                 if a == *b {
-                    print_matched(a);
+                    print_matched(&mut handle, a);
                     m_iter.next();
                     s_iter.next();
                 } else if a < *b {
-                    print_metadata_incomplete(b);
+                    print_metadata_incomplete(&mut handle, b);
                     s_iter.next();
                 } else {
-                    print_missing_snapshot(a);
+                    print_missing_snapshot(&mut handle, a);
                     m_iter.next();
                 } 
 
             },
 
             (Some(a), None) => {
-                print_missing_snapshot(a);
+                print_missing_snapshot(&mut handle, a);
                 m_iter.next();
             },
             
             (None, Some(b)) => {
-                print_metadata_incomplete(b);
+                print_metadata_incomplete(&mut handle, b);
                 s_iter.next();
             },
 
@@ -72,19 +76,19 @@ pub fn handle_checkhealth(dump: bool) -> Result<(), Error> {
     Ok(())
 }
 
-fn print_matched(timestamp: &u64) {
-    println!("{ANSI_INFO}{timestamp} -> Matched{ANSI_RESET}")
+fn print_matched<W: std::io::Write>(writer: &mut W, timestamp: &u64) {
+    writeln!(writer, "{ANSI_INFO}{timestamp} -> Matched{ANSI_RESET}");
 }
 
-fn print_metadata_incomplete(timestamp: &u64) {
-    println!("{ANSI_WARNING}{timestamp} -> Metadata incomplete{ANSI_RESET}");
+fn print_metadata_incomplete<W: std::io::Write>(writer: &mut W, timestamp: &u64) {
+    writeln!(writer, "{ANSI_WARNING}{timestamp} -> Metadata incomplete{ANSI_RESET}");
 }
 
-fn print_missing_snapshot(timestamp: &u64) {
-    println!("{ANSI_WARNING}{timestamp} -> Missing snapshot{ANSI_RESET}");
+fn print_missing_snapshot<W: std::io::Write>(writer: &mut W, timestamp: &u64) {
+    writeln!(writer, "{ANSI_WARNING}{timestamp} -> Missing snapshot{ANSI_RESET}");
 }
 
-fn print_broken_symlink() {
-    println!("{ANSI_WARNING}Broken 'latest' symlink{ANSI_RESET}");
+fn print_broken_symlink<W: std::io::Write>(writer: &mut W) {
+    writeln!(writer, "{ANSI_WARNING}Broken 'latest' symlink{ANSI_RESET}");
 }
 
