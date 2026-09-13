@@ -156,7 +156,6 @@ impl SnapshotMetaData {
     }
 
     pub fn overwrite_metadata_file(snapshots: &[SnapshotMetaData]) -> Result<(), Error> {
-
         let mut file = std::fs::File::create(METADATA_FILE)
             .with_context(METADATA_FILE)?;
 
@@ -268,11 +267,15 @@ pub fn dump_snapshots() -> Result<(), Error> {
     let host_location = crate::location::get_host_location()?;
     let snapshots = crate::location::retrieve_snapshots_as_ordered_vec(&host_location)?;
 
-    let metadata_file_content = read_metadata_file_to_string()?;
-    let metadata = parse_metadata_as_hashmap(&metadata_file_content)?;
+    // Whether the file exists or not should not
+    // determine whether this function is successfull.
+    let metadata_map = match read_metadata_file_to_string() {
+        Ok(content) => parse_metadata_as_hashmap(&content)?,
+        Err(_) => HashMap::default()
+    };
 
     let metadata  = snapshots.iter().map(|s| {
-        let tags = metadata.get(s).unwrap_or(&vec![RetentionTag::Untagged]).to_vec();
+        let tags = metadata_map.get(s).unwrap_or(&vec![RetentionTag::Untagged]).to_vec();
         SnapshotMetaData::new(*s, tags)
     }).collect::<Result<Vec<SnapshotMetaData>, Error>>()?;
     
