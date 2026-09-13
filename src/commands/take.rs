@@ -10,7 +10,7 @@ use crate::error::Error;
 pub fn handle_take(tag: Option<crate::meta::RetentionTag>) -> Result<(), Error> {
     println!("[1/3] Creating pending directory...");
     let (timestamp, snapshot_dir) = create_pending_snapshot_name()?;
-    println!("\tPending directory created: {}", &snapshot_dir.display());
+    println!("\tPending directory created: {}", snapshot_dir.display());
 
     println!("\n[2/3] Starting incremental snapshot...");
     let start = Path::new("/");

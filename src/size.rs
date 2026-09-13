@@ -7,6 +7,12 @@ use std::{
 
 use crate::error::Error;
 
+// TODO: See how fast
+// the directory size can
+// be determined by using the
+// optimized single threaded logic
+// used for take.
+
 fn format_size(kilobytes: u64) -> String {
     //const KB: u64 = 1024;
     //const MB: u64 = KB * 1024;
@@ -198,6 +204,58 @@ pub fn compute_par_snapshot_sizes() -> Result<(), Error> {
             format_size(uniq_size + hl_size),
         );
     }
+
+    Ok(())
+}
+
+
+
+
+
+
+
+
+pub fn linear_size(path: &Path) -> Result<(), Error> {
+
+    let mut stack = vec![path.to_path_buf()];
+
+    let mut total_bytes = 0;
+
+    let dev = std::fs::metadata(path)?.dev();
+
+    while let Some(path) = stack.pop() {
+        let entries = match std::fs::read_dir(&path) {
+            Ok(entries) => entries,
+            Err(_) => continue,
+        };
+
+
+        for entry in entries {
+            let entry = match entry {
+                Ok(entry) => entry,
+                Err(e) => { println!("Failed {}", e); continue; }
+            };
+
+            println!("{:?}", entry);
+
+            if entry.metadata()?.dev() != dev {
+                continue;
+            }
+
+            let file_type = entry.file_type()?;
+
+            if file_type.is_symlink() {
+                continue;
+            } else if file_type.is_dir() {
+                stack.push(entry.path());
+            }
+
+            total_bytes += entry.metadata()?.blocks();
+            
+        }
+
+    }
+    println!("{}", total_bytes * 512 / (1024 * 1024));
 
     Ok(())
 }
