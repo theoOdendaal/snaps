@@ -5,6 +5,8 @@ use std::{
     sync::Mutex,
 };
 
+use std::os::unix::fs::DirEntryExt;
+
 use crate::error::Error;
 
 // TODO: See how fast
@@ -85,20 +87,28 @@ fn compute_dir_entry_size(
     let mut total_hl_blocks: u64 = 0;
 
     while let Some(path) = stack.pop() {
+        
+        // FIXME: This can be drastically optimizes.
+        // Follow similar logic as used for linear_size,
+        // call metadata once for all non symlinks, and
+        // resuse DireEntry.ino() etc.
+
+        if metadata.file_type().is_symlink() {
+            continue;
+        }
+        
         let metadata = match std::fs::symlink_metadata(&path) {
             Ok(m) => m,
             Err(_) => continue,
         };
 
-        if metadata.file_type().is_symlink() {
-            continue;
-        }
-
         let file_id = (metadata.dev(), metadata.ino());
 
-        let blocks = {
+        let blocks = if metadata.nlink() > 1 {
             let mut map = global_seen.lock().unwrap();
             *map.entry(file_id).or_insert_with(|| metadata.blocks())
+        } else {
+            metadata.blocks()
         };
 
         if seen_inodes.insert(file_id) {
@@ -210,52 +220,70 @@ pub fn compute_par_snapshot_sizes() -> Result<(), Error> {
 
 
 
-
-
-
-
-
 pub fn linear_size(path: &Path) -> Result<(), Error> {
+    let mut inode_history = HashSet::with_capacity(10_000);
 
     let mut stack = vec![path.to_path_buf()];
+    let mut total_blocks = 0;
 
-    let mut total_bytes = 0;
-
-    let dev = std::fs::metadata(path)?.dev();
+    let base_dev = std::fs::metadata(path)?.dev();
 
     while let Some(path) = stack.pop() {
         let entries = match std::fs::read_dir(&path) {
             Ok(entries) => entries,
-            Err(_) => continue,
+            Err(_) => {
+                eprintln!("Unable to read path: {:?}", &path);
+                continue;
+            },
         };
-
 
         for entry in entries {
             let entry = match entry {
                 Ok(entry) => entry,
-                Err(e) => { println!("Failed {}", e); continue; }
+                Err(_) => continue,
             };
 
-            println!("{:?}", entry);
-
-            if entry.metadata()?.dev() != dev {
-                continue;
-            }
-
-            let file_type = entry.file_type()?;
-
+            let file_type = match entry.file_type() {
+                Ok(ft) => ft,
+                Err(_) => continue,
+            };
+            
             if file_type.is_symlink() {
                 continue;
-            } else if file_type.is_dir() {
-                stack.push(entry.path());
             }
 
-            total_bytes += entry.metadata()?.blocks();
+            let entry_metadata = entry.metadata()?;
+            
+            // Skip any entry not on the 
+            // base dev.
+            if entry_metadata.dev() != base_dev {
+                continue;
+            }
+
+            let nlink = entry_metadata.nlink();
+            
+            if entry_metadata.is_file() && nlink > 1 {
+                let inode = entry.ino();
+                
+                if !inode_history.insert(inode) {
+                    continue;
+                }
+            } 
+            
+            total_blocks += entry_metadata.blocks();
+
+            if file_type.is_dir() {
+                //stack.push(entry_path); 
+                stack.push(entry.path()); 
+            }
             
         }
 
     }
-    println!("{}", total_bytes * 512 / (1024 * 1024));
+    let bytes = total_blocks/ 2 ;
+    let fmt_bytes = format_size(bytes);
+    println!("Total size: {}", fmt_bytes);
+
 
     Ok(())
 }
