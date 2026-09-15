@@ -1,32 +1,22 @@
-use std::os::unix::fs::MetadataExt;
+use std::os::unix::fs::{MetadataExt, DirEntryExt};
 use std::{
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{HashSet, VecDeque},
     path::{Path, PathBuf},
-    sync::Mutex,
 };
-
-use std::os::unix::fs::DirEntryExt;
 
 use crate::error::Error;
 
-// TODO: See how fast
-// the directory size can
-// be determined by using the
-// optimized single threaded logic
-// used for take.
-
-fn format_size(kilobytes: u64) -> String {
-    //const KB: u64 = 1024;
-    //const MB: u64 = KB * 1024;
-    const MB: u64 = 1024;
+pub fn format_size(bytes: u64) -> String {
+    const KB: u64 = 1024;
+    const MB: u64 = KB * 1024;
     const GB: u64 = MB * 1024;
 
-    if kilobytes >= GB {
-        format!("{:.2} GB", kilobytes as f64 / GB as f64)
-    } else if kilobytes >= MB {
-        format!("{:.2} MB", kilobytes as f64 / MB as f64)
+    if bytes >= GB {
+        format!("{:.2} GB", bytes as f64 / GB as f64)
+    } else if bytes >= MB {
+        format!("{:.2} MB", bytes as f64 / MB as f64)
     } else {
-        format!("{:.2} KB", kilobytes)
+        format!("{:.2} KB", bytes)
     }
 }
 
@@ -74,72 +64,7 @@ impl TaskQueue {
     }
 }
 
-fn compute_dir_entry_size(
-    source_path: &Path,
-    global_seen: &std::sync::Arc<Mutex<HashMap<(u64, u64), u64>>>,
-) -> Result<(u64, u64), Error> {
-    let mut seen_inodes = HashSet::with_capacity(8192);
-    let mut stack: Vec<PathBuf> = Vec::with_capacity(8192);
-
-    stack.push(source_path.to_path_buf());
-
-    let mut total_uniq_blocks: u64 = 0;
-    let mut total_hl_blocks: u64 = 0;
-
-    while let Some(path) = stack.pop() {
-        
-        // FIXME: This can be drastically optimizes.
-        // Follow similar logic as used for linear_size,
-        // call metadata once for all non symlinks, and
-        // resuse DireEntry.ino() etc.
-
-        if metadata.file_type().is_symlink() {
-            continue;
-        }
-        
-        let metadata = match std::fs::symlink_metadata(&path) {
-            Ok(m) => m,
-            Err(_) => continue,
-        };
-
-        let file_id = (metadata.dev(), metadata.ino());
-
-        let blocks = if metadata.nlink() > 1 {
-            let mut map = global_seen.lock().unwrap();
-            *map.entry(file_id).or_insert_with(|| metadata.blocks())
-        } else {
-            metadata.blocks()
-        };
-
-        if seen_inodes.insert(file_id) {
-            if metadata.nlink() > 1 {
-                total_hl_blocks += blocks;
-            } else {
-                total_uniq_blocks += blocks;
-            }
-        }
-
-        if metadata.is_dir() {
-            let entries = match std::fs::read_dir(&path) {
-                Ok(entries) => entries,
-                Err(_) => continue,
-            };
-
-            for entry in entries.flatten() {
-                let mut child_path = PathBuf::with_capacity(path.as_os_str().len() + 64);
-                child_path.push(&path);
-                child_path.push(entry.file_name());
-                stack.push(child_path);
-            }
-        }
-    }
-
-    // du presents sizes in units of 1024 byte, i.e. 1 Kilobyte
-    Ok((total_uniq_blocks / 2, total_hl_blocks / 2))
-    //Ok(total_blocks * 512)
-}
-
-pub fn compute_par_snapshot_sizes() -> Result<(), Error> {
+pub fn orchestrate_directories_size_calculation() -> Result<(), Error> {
     let snapshot_dir = Path::new("/var/snaps/snapshots/arch-theo/");
     let mut snapshots: Vec<PathBuf> = snapshot_dir
         .read_dir()?
@@ -149,8 +74,6 @@ pub fn compute_par_snapshot_sizes() -> Result<(), Error> {
         .collect();
 
     snapshots.sort();
-
-    let global_hashmap = std::sync::Arc::new(std::sync::Mutex::new(HashMap::with_capacity(65536)));
 
     let task_queue = std::sync::Arc::new(TaskQueue::new());
 
@@ -169,12 +92,13 @@ pub fn compute_par_snapshot_sizes() -> Result<(), Error> {
     for _ in 0..num_workers {
         let queue_clone = std::sync::Arc::clone(&task_queue);
 
-        let global_hashmap_clone = std::sync::Arc::clone(&global_hashmap);
-
         let handle = std::thread::spawn(move || -> Result<Vec<(PathBuf, u64, u64)>, Error> {
             let mut results = Vec::new();
             while let Some(task) = queue_clone.pop() {
-                let (uniq, hl) = compute_dir_entry_size(&task, &global_hashmap_clone)?;
+                //let (uniq, hl) = compute_dir_entry_size(&task)?;
+                let sizes = linear_directory_size(&task)?;
+                let uniq = (sizes.st_blocks - sizes.shared_st_blocks) * 512;
+                let hl = sizes.shared_st_blocks * 512;
                 results.push((task, uniq, hl));
             }
 
@@ -214,19 +138,45 @@ pub fn compute_par_snapshot_sizes() -> Result<(), Error> {
             format_size(uniq_size + hl_size),
         );
     }
+    //let total_size: u64 = global_hashmap.lock().unwrap().values().sum();
+    //let fmt_total_size = format_size(total_size);
+    //println!("Total size: {}", fmt_total_size);
 
     Ok(())
 }
 
 
+pub struct DirectorySize {
+    st_size: u64,
+    st_blocks: u64,
+    shared_st_size: u64,
+    shared_st_blocks: u64,
+}
 
-pub fn linear_size(path: &Path) -> Result<(), Error> {
+impl std::fmt::Display for DirectorySize {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let fmt_st_size = format_size(self.st_size);
+        let fmt_st_blocks = format_size(self.st_blocks * 512);
+        let fmt_shared_st_size = format_size(self.shared_st_size);
+        let fmt_shared_st_blocks = format_size(self.shared_st_blocks * 512);
+
+        writeln!(f, "st_size: {}, st_blocks: {}, shared st_size: {}, shared st_blocks: {}",
+            fmt_st_size,
+            fmt_st_blocks,
+            fmt_shared_st_size,
+            fmt_shared_st_blocks)
+    }
+}
+
+pub fn linear_directory_size(path: &Path) -> Result<DirectorySize, Error> {
     let mut inode_history = HashSet::with_capacity(10_000);
 
     let mut stack = vec![path.to_path_buf()];
-    let mut total_blocks = 0;
 
-    let base_dev = std::fs::metadata(path)?.dev();
+    let mut st_size = 0;
+    let mut st_blocks = 0;
+    let mut shared_st_size = 0;
+    let mut shared_st_blocks = 0;
 
     while let Some(path) = stack.pop() {
         let entries = match std::fs::read_dir(&path) {
@@ -253,37 +203,34 @@ pub fn linear_size(path: &Path) -> Result<(), Error> {
             }
 
             let entry_metadata = entry.metadata()?;
-            
-            // Skip any entry not on the 
-            // base dev.
-            if entry_metadata.dev() != base_dev {
-                continue;
-            }
 
             let nlink = entry_metadata.nlink();
             
             if entry_metadata.is_file() && nlink > 1 {
+                let dev = entry_metadata.dev();
                 let inode = entry.ino();
                 
-                if !inode_history.insert(inode) {
+                if !inode_history.insert((dev, inode)) {
                     continue;
                 }
+                
+                shared_st_size += entry_metadata.len();
+                shared_st_blocks += entry_metadata.blocks();
             } 
             
-            total_blocks += entry_metadata.blocks();
+            st_size += entry_metadata.len();
+            st_blocks += entry_metadata.blocks();
 
             if file_type.is_dir() {
-                //stack.push(entry_path); 
                 stack.push(entry.path()); 
             }
-            
         }
-
     }
-    let bytes = total_blocks/ 2 ;
-    let fmt_bytes = format_size(bytes);
-    println!("Total size: {}", fmt_bytes);
-
-
-    Ok(())
+    
+    Ok(DirectorySize {
+        st_size,
+        st_blocks,
+        shared_st_size,
+        shared_st_blocks
+    })
 }

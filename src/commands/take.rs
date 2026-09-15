@@ -79,6 +79,11 @@ fn linear_snapshot(path: &Path, snapshot_dir: &Path, latest_dir: &Path) -> Resul
                 let target_path = snapshot_dir.join(relative_path);
 
                 std::fs::create_dir(target_path)?;
+                
+                // FIXME: allocated bytes and delta bytes should
+                // also be updated to account for dir sizes. Dir's
+                // also have sizes, and this current approach
+                // understates the total delta.
 
             } else if file_type.is_file() {
                 let relative_path = path
@@ -133,10 +138,10 @@ pub struct IncrementalCopyTracker {
 impl std::fmt::Display for IncrementalCopyTracker {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let duration = self.start_time.elapsed().as_secs_f64();
-        let allocated_mb = self.allocated_bytes / (1024 * 1024) ;
-        let apparent_mb = self.apparent_bytes / (1024 * 1024);
-        let delta_mb = self.delta_bytes / (1024 * 1024);
-        write!(f, "\tElapsed: {:.2}s\n\tAllocated size: {:>.2} MiB\n\tApparent size: {:>.2} Mib\n\tDelta size: {:>.2} MiB", duration, allocated_mb, apparent_mb, delta_mb)
+        let fmt_allocated = crate::size::format_size(self.allocated_bytes) ;
+        let fmt_apparent = crate::size::format_size(self.apparent_bytes);
+        let fmt_delta = crate::size::format_size(self.delta_bytes);
+        write!(f, "\tElapsed: {:.2}s\n\tAllocated size: {} \n\tApparent size: {} \n\tDelta size: {}", duration, fmt_allocated, fmt_apparent, fmt_delta)
     }
 }
 
@@ -178,7 +183,6 @@ fn incremental_copy(source_dir: &DirEntry, target_path: &Path, latest_dir: &Path
         .strip_prefix(std::path::Component::RootDir)
         .map_err(std::io::Error::other)?;
 
-    //let latest_location = crate::location::get_latest_location()?;
     let previous_snapshot = latest_dir.join(relative_source_dir);
 
     // Rather than checking exists and then calling metadata, retrieve the
@@ -214,7 +218,6 @@ fn incremental_copy(source_dir: &DirEntry, target_path: &Path, latest_dir: &Path
             //For now, I'll have to open a buffer.
             //std::fs::set_times(target_path, times)?;
 
-            //println!("{:?} -> {:?}", source_dir, target_path);
         }
         
         let size = source_metadata.blocks() * 512;
