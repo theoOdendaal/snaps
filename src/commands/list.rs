@@ -16,8 +16,6 @@ pub fn handle_list(
     // to the normal list, and not
     // have a separate display.
     if display_size {
-        //let sizes = crate::size::linear_directory_size(std::path::Path::new("/var/snaps/snapshots/arch-theo/"))?;
-        //println!("{}", sizes);
         crate::size::orchestrate_directories_size_calculation()?;
         return Ok(());
     }

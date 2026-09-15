@@ -67,6 +67,9 @@ impl TaskQueue {
     }
 }
 
+// Currently threads are allocated individual snapshots.
+// TODO: Is this effecient? Maybe? Should I explore the possibility of
+// maybe using threads to traverse individual snapshots?
 pub fn orchestrate_directories_size_calculation() -> Result<(), Error> {
     let snapshot_dir = Path::new("/var/snaps/snapshots/arch-theo/");
     let mut snapshots: Vec<PathBuf> = snapshot_dir
@@ -95,14 +98,16 @@ pub fn orchestrate_directories_size_calculation() -> Result<(), Error> {
     for _ in 0..num_workers {
         let queue_clone = std::sync::Arc::clone(&task_queue);
 
-        let handle = std::thread::spawn(move || -> Result<Vec<(PathBuf, u64, u64)>, Error> {
+        //let handle = std::thread::spawn(move || -> Result<Vec<(PathBuf, u64, u64)>, Error> {
+        let handle = std::thread::spawn(move || -> Result<Vec<(PathBuf, DirectorySize)>, Error> {
             let mut results = Vec::new();
             while let Some(task) = queue_clone.pop() {
                 //let (uniq, hl) = compute_dir_entry_size(&task)?;
                 let sizes = linear_directory_size(&task)?;
-                let uniq = (sizes.st_blocks - sizes.shared_st_blocks) * 512;
-                let hl = sizes.shared_st_blocks * 512;
-                results.push((task, uniq, hl));
+                //let uniq = (sizes.st_blocks - sizes.shared_st_blocks) * 512;
+                //let hl = sizes.shared_st_blocks * 512;
+                //results.push((task, uniq, hl));
+                results.push((task, sizes));
             }
 
             Ok(results)
@@ -121,6 +126,12 @@ pub fn orchestrate_directories_size_calculation() -> Result<(), Error> {
     }
     snapshot_sizes.sort_unstable_by(|a, b| a.0.cmp(&b.0));
 
+    for (timestamp, s) in snapshot_sizes {
+        let name = timestamp.file_name().unwrap().to_string_lossy();
+        println!("{} {}", name, s);
+    }
+    
+    /*
     println!(
         "{:<12} | {:<20} | {:<10} | {:<10} | {:<10}",
         "Host", "Snapshot", "Unique", "Hard-link", "Total"
@@ -140,7 +151,7 @@ pub fn orchestrate_directories_size_calculation() -> Result<(), Error> {
             format_size(hl_size),
             format_size(uniq_size + hl_size),
         );
-    }
+    }*/
     //let total_size: u64 = global_hashmap.lock().unwrap().values().sum();
     //let fmt_total_size = format_size(total_size);
     //println!("Total size: {}", fmt_total_size);
@@ -163,7 +174,7 @@ impl std::fmt::Display for DirectorySize {
         let fmt_shared_st_size = format_size(self.shared_st_size);
         let fmt_shared_st_blocks = format_size(self.shared_st_blocks * 512);
 
-        writeln!(f, "st_size: {}, st_blocks: {}, shared st_size: {}, shared st_blocks: {}",
+        write!(f, "st_size: {}, st_blocks: {}, shared st_size: {}, shared st_blocks: {}",
             fmt_st_size,
             fmt_st_blocks,
             fmt_shared_st_size,
