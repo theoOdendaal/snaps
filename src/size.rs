@@ -11,6 +11,9 @@ pub fn format_size(bytes: u64) -> String {
     const MB: u64 = KB * 1024;
     const GB: u64 = MB * 1024;
 
+    // Use the below to align with du -s. 
+    //format!("{:.2}", (bytes as f64 / KB as f64) as u64)
+
     if bytes >= GB {
         format!("{:.2} GB", bytes as f64 / GB as f64)
     } else if bytes >= MB {
@@ -173,10 +176,20 @@ pub fn linear_directory_size(path: &Path) -> Result<DirectorySize, Error> {
 
     let mut stack = vec![path.to_path_buf()];
 
+
     let mut st_size = 0;
     let mut st_blocks = 0;
     let mut shared_st_size = 0;
     let mut shared_st_blocks = 0;
+    
+    // Don't forget to account for the dir
+    // that was passed as argument.
+    let path_metadata = std::fs::symlink_metadata(path)?;
+    let path_size = path_metadata.len();
+    let path_blocks = path_metadata.blocks();
+    
+    st_size += path_size;
+    st_blocks += path_blocks;
 
     while let Some(path) = stack.pop() {
         let entries = match std::fs::read_dir(&path) {
