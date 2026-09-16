@@ -77,11 +77,20 @@ pub fn handle_list(
             ""
         };
 
-        writeln!(
+        write!(writer, "{hostname:<10} ")?;
+        write!(writer, "{tag_string:<6} ")?;
+        write!(writer, "{i:<3} ")?;
+        write!(writer, "{year:04}-{month:02}-{day:02} {hour:02}:{min:02}:{sec:02} ")?;
+        write!(writer, "{:<5} ", snapshot / WEEK_IN_SECONDS)?;
+        write!(writer, "{snapshot} ")?;
+        write!(writer, "{latest_prefix} ")?;
+        writeln!(writer, "{reset_code}")?;
+
+        /*writeln!(
             writer,
             "{hostname:<10} {tag_string:<6} {i:<3} {year:04}-{month:02}-{day:02} {hour:02}:{min:02}:{sec:02} {:<5} {snapshot} {latest_prefix} {reset_code}",
             snapshot / WEEK_IN_SECONDS,
-        )?;
+        )?;*/
 
     }
     writer.flush()?;
