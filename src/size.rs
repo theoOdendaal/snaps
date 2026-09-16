@@ -6,6 +6,10 @@ use std::{
 
 use crate::error::Error;
 
+// TODO: Construct similarity matrix of all existing snapshots
+// by counting overlapping inodes.
+
+
 pub fn format_size(bytes: u64) -> String {
     const KIB: u64 = 1024;
     const MIB: u64 = KIB * 1024;

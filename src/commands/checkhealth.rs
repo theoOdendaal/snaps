@@ -10,6 +10,13 @@ pub const ANSI_RESET: &str = "\x1B[0m";
 // FIXME: Create functionality that will restore the 'latest'
 // symlink if broken.
 
+// FIXME: Checkhealth should display information per host name.
+
+// FIXME: checkhealth should explictly log all checks.
+// - .trash dir found and empty
+// - .pending dir found and empty
+// - metadata file exists etc
+
 pub fn handle_checkhealth(dump: bool) -> Result<(), Error> {
     if dump {
         crate::meta::dump_snapshots()?;
