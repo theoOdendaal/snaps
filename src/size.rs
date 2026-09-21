@@ -102,15 +102,10 @@ pub fn orchestrate_directories_size_calculation() -> Result<(), Error> {
     for _ in 0..num_workers {
         let queue_clone = std::sync::Arc::clone(&task_queue);
 
-        //let handle = std::thread::spawn(move || -> Result<Vec<(PathBuf, u64, u64)>, Error> {
         let handle = std::thread::spawn(move || -> Result<Vec<(PathBuf, DirectorySize)>, Error> {
             let mut results = Vec::new();
             while let Some(task) = queue_clone.pop() {
-                //let (uniq, hl) = compute_dir_entry_size(&task)?;
                 let sizes = linear_directory_size(&task)?;
-                //let uniq = (sizes.st_blocks - sizes.shared_st_blocks) * 512;
-                //let hl = sizes.shared_st_blocks * 512;
-                //results.push((task, uniq, hl));
                 results.push((task, sizes));
             }
 
@@ -135,31 +130,6 @@ pub fn orchestrate_directories_size_calculation() -> Result<(), Error> {
         println!("{} {}", name, s);
     }
     
-    /*
-    println!(
-        "{:<12} | {:<20} | {:<10} | {:<10} | {:<10}",
-        "Host", "Snapshot", "Unique", "Hard-link", "Total"
-    );
-    for (snap, uniq_size, hl_size) in snapshot_sizes {
-        let parent = snap
-            .parent()
-            .and_then(|p| p.file_name().unwrap().to_str())
-            .unwrap();
-        let snapshot = snap.file_name().and_then(|p| p.to_str()).unwrap();
-
-        println!(
-            "{:<12} | {:<20} | {:<10} | {:<10} | {:<10}",
-            parent,
-            snapshot,
-            format_size(uniq_size),
-            format_size(hl_size),
-            format_size(uniq_size + hl_size),
-        );
-    }*/
-    //let total_size: u64 = global_hashmap.lock().unwrap().values().sum();
-    //let fmt_total_size = format_size(total_size);
-    //println!("Total size: {}", fmt_total_size);
-
     Ok(())
 }
 
@@ -210,7 +180,7 @@ pub fn linear_directory_size(path: &Path) -> Result<DirectorySize, Error> {
         let entries = match std::fs::read_dir(&path) {
             Ok(entries) => entries,
             Err(_) => {
-                eprintln!("Unable to read path: {:?}", &path);
+                eprintln!("Unable to read path: {:?}", path);
                 continue;
             },
         };

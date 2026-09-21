@@ -41,12 +41,6 @@ pub fn handle_take(tag: Option<crate::meta::RetentionTag>) -> Result<(), Error> 
 fn linear_snapshot(path: &Path, snapshot_dir: &Path, latest_dir: &Path) -> Result<(), Error> {
     let mut stack = vec![path.to_path_buf()];
 
-    // A quick check without having to look at
-    // path literals is the dev for a entry.
-    
-    //let root_dev = std::fs::metadata(path)?.dev();
-    //let boot_dev = std::fs::metadata("/boot")?.dev();
-
     let mut progress_tracker = IncrementalCopyTracker::new();
 
     while let Some(path) = stack.pop() {
